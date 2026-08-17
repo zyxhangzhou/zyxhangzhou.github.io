@@ -20,7 +20,7 @@ export async function GET(context: APIContext) {
     description,
     // 项目路由要求保留尾斜杠
     trailingSlash: true,
-    site: context.site ?? "https://preview.astro.kaitaku.xyz",
+    site: context.site ?? "https://zyxhangzhou.github.io",
     items: published.map((post) => ({
       title: post.data.title,
       description:
