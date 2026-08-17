@@ -1,0 +1,81 @@
+---
+import { fetchTweetPreview } from "@/toolkit/twitter";
+
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+const preview = await fetchTweetPreview(id);
+const href = preview.url;
+const authorLabel = preview.authorHandle
+  ? `${preview.authorName || preview.authorHandle} (@${preview.authorHandle})`
+  : "查看原推";
+---
+
+<figure class="tweet-embed" data-tweet-id={id}>
+  <a class="tweet-fallback" href={href} target="_blank" rel="noopener noreferrer">
+    <div class="tweet-fallback__meta">{authorLabel}</div>
+    {preview.text ? <p class="tweet-fallback__text">{preview.text}</p> : <p class="tweet-fallback__text">打开这条 X 帖子</p>}
+  </a>
+  <blockquote class="twitter-tweet" data-dnt="true">
+    <a href={href}></a>
+  </blockquote>
+</figure>
+
+<script>
+  const loadTwitterWidgets = () => {
+    const win = window as Window & {
+      twttr?: { widgets?: { load: (el?: HTMLElement) => void } };
+    };
+    if (win.twttr?.widgets) {
+      win.twttr.widgets.load();
+      return;
+    }
+    if (document.querySelector("script[data-twitter-widgets]")) return;
+    const script = document.createElement("script");
+    script.src = "https://platform.twitter.com/widgets.js";
+    script.async = true;
+    script.dataset.twitterWidgets = "true";
+    document.body.appendChild(script);
+  };
+
+  loadTwitterWidgets();
+  document.addEventListener("astro:page-load", loadTwitterWidgets);
+</script>
+
+<style>
+  .tweet-embed {
+    margin: 1.25rem 0 1.5rem;
+  }
+
+  .tweet-fallback {
+    display: block;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--border-color-muted, #ddd);
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
+    background: var(--grey-1, #fafafa);
+  }
+
+  .tweet-fallback__meta {
+    font-size: 0.85rem;
+    color: var(--text-color-muted, #666);
+    margin-bottom: 0.4rem;
+  }
+
+  .tweet-fallback__text {
+    margin: 0;
+    white-space: pre-wrap;
+    line-height: 1.55;
+  }
+
+  .tweet-embed:has(.twitter-tweet-rendered) .tweet-fallback {
+    display: none;
+  }
+
+  .tweet-embed :global(.twitter-tweet) {
+    margin: 0 auto;
+  }
+</style>

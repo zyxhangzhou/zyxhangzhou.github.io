@@ -50,6 +50,7 @@ const mdxAutoImports = [
   "@/components/mdx/QuizMistake.astro",
   "@/components/mdx/Tabs.astro",
   "@/components/mdx/Tab.astro",
+  "@/components/mdx/Tweet.astro",
 ];
 
 import Font from "vite-plugin-font";
