@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Octopus">
+  <rect width="32" height="32" rx="8" fill="#de6b9c"/>
+  <g fill="#fff">
+    <ellipse cx="16" cy="13" rx="7.6" ry="7.3"/>
+    <rect x="8.8" y="15.6" width="14.4" height="5.2" rx="2.4"/>
+    <ellipse cx="9.1" cy="21.6" rx="2.15" ry="4.7" transform="rotate(-22 9.1 21.6)"/>
+    <ellipse cx="12.5" cy="23.4" rx="1.95" ry="5.1" transform="rotate(-8 12.5 23.4)"/>
+    <ellipse cx="16" cy="24" rx="1.85" ry="5.3"/>
+    <ellipse cx="19.5" cy="23.4" rx="1.95" ry="5.1" transform="rotate(8 19.5 23.4)"/>
+    <ellipse cx="22.9" cy="21.6" rx="2.15" ry="4.7" transform="rotate(22 22.9 21.6)"/>
+  </g>
+  <circle cx="13.2" cy="12.2" r="1.45" fill="#5a2a45"/>
+  <circle cx="18.8" cy="12.2" r="1.45" fill="#5a2a45"/>
+  <circle cx="13.6" cy="11.8" r="0.45" fill="#fff"/>
+  <circle cx="19.2" cy="11.8" r="0.45" fill="#fff"/>
+</svg>
