@@ -41,6 +41,13 @@ describe("wrapRenderedImages", () => {
     expect(out).toContain("<figcaption>b 说明</figcaption>");
   });
 
+  it("推文卡片图片不包装 image-zoom", () => {
+    const html = `<img src="https://pbs.twimg.com/media/a.jpg" alt="" data-tweet-media/>`;
+    expect(wrapRenderedImages(html)).toBe(
+      `<img src="https://pbs.twimg.com/media/a.jpg" alt="" data-tweet-media>`,
+    );
+  });
+
   it("img 无自闭合斜杠也能匹配", () => {
     const html = `<img src="/a.png" title="cap">`;
     const out = wrapRenderedImages(html);

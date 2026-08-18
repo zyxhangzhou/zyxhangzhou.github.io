@@ -54,6 +54,7 @@ const iconSafeList = [
   // 外链标识图标：由 wrapExternalLinks 在构建时动态注入 HTML，
   // UnoCSS 静态扫描源文件无法发现，需显式 safelist
   "i-ri-external-link-line",
+  "i-ri-twitter-x-line",
 ].map(normalizeIconName);
 
 export default defineConfig({

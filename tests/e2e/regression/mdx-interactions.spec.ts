@@ -38,3 +38,17 @@ test("@regression MDX Quiz 交互可触发", async ({ page }) => {
   await multiCheckButton.click();
   await expect(multiQuiz).toHaveClass(/show/);
 });
+
+test("@regression MDX Tweet 渲染为静态卡片且不加载官方脚本", async ({ page }) => {
+  const response = await page.goto(POSTS.noteMdxDemo);
+  expect(response?.ok()).toBeTruthy();
+
+  const card = page.locator(".tweet-card").first();
+  await expect(card).toBeVisible();
+  await expect(card.locator(".tweet-card__link")).toHaveAttribute(
+    "href",
+    /https:\/\/x\.com\/.+\/status\/2088915755127759039/,
+  );
+  await expect(card.locator(".tweet-card__footer")).toContainText("在 X 上查看");
+  await expect(page.locator("script[src*='platform.twitter.com/widgets.js']")).toHaveCount(0);
+});

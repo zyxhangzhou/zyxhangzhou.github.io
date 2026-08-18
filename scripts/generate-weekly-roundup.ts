@@ -158,7 +158,9 @@ ${JSON.stringify(catalog, null, 2)}`,
   parsed.clusters = (parsed.clusters ?? [])
     .map((cluster) => ({
       ...cluster,
-      tweetIds: (cluster.tweetIds ?? []).filter((id) => known.has(id) && !used.has(id) && (used.add(id), true)),
+      tweetIds: (cluster.tweetIds ?? []).filter(
+        (id) => known.has(id) && !used.has(id) && (used.add(id), true),
+      ),
     }))
     .filter((cluster) => cluster.tweetIds.length > 0);
 
@@ -202,11 +204,7 @@ const body = [
     "",
     cluster.summary,
     "",
-    ...cluster.tweetIds.flatMap((id) => {
-      const preview = previews.get(id);
-      const author = preview?.authorHandle ? `@${preview.authorHandle}` : "X";
-      return [`<Tweet id="${id}" />`, "", `<small>来源：[${author}](${preview?.url ?? `https://x.com/i/status/${id}`})</small>`, ""];
-    }),
+    ...cluster.tweetIds.flatMap((id) => [`<Tweet id="${id}" />`, ""]),
   ]),
 ].join("\n");
 

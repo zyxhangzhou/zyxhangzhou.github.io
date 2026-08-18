@@ -1,4 +1,5 @@
 const IMAGE_TAG_PATTERN = /<img(?<attributes>[^>]*?)\s*\/?>/g;
+const SKIP_TWEET_MEDIA = /\bdata-tweet-media\b/;
 
 // 提取 title 属性（双引号或单引号，非空）
 const TITLE_PATTERN = /\btitle=(?<quote>["'])(?<title>[^"']+)\k<quote>/i;
@@ -13,6 +14,9 @@ const TITLE_PATTERN = /\btitle=(?<quote>["'])(?<title>[^"']+)\k<quote>/i;
  */
 export function wrapRenderedImages(html: string): string {
   return html.replace(IMAGE_TAG_PATTERN, (_, attributes = "") => {
+    if (SKIP_TWEET_MEDIA.test(attributes)) {
+      return `<img${attributes}>`;
+    }
     const img = `<img${attributes}>`;
     const titleMatch = attributes.match(TITLE_PATTERN);
     if (!titleMatch) {
