@@ -1,0 +1,44 @@
+name: Weekly tweet roundup
+
+on:
+  schedule:
+    - cron: "0 5 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  roundup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.12
+
+      - name: Generate roundup
+        env:
+          QWEN_API_KEY: ${{ secrets.QWEN_API_KEY }}
+          QWEN_BASE_URL: ${{ secrets.QWEN_BASE_URL }}
+          QWEN_MODEL: ${{ secrets.QWEN_MODEL }}
+        run: bun run tweets:roundup
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: weekly-roundup
+          delete-branch: true
+          title: "本周摘录：X 推文周报"
+          commit-message: "content: add weekly tweet roundup"
+          body: |
+            自动生成的本周 X 摘录，请先预览再合并。
+
+            周日 14:00 JST 定时运行；也可以在 Actions 里手动触发。
+          add-paths: |
+            src/posts/roundup/*.mdx
