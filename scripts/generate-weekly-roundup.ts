@@ -66,7 +66,7 @@ function fallbackPlan(): RoundupPlan {
   return {
     title: `本周摘录 · ${weekStartLabel} – ${weekEndLabel}`,
     description: `本周分享了 ${weeklyItems.length} 条推文。`,
-    intro: "DeepSeek API Key 还没有配置，这一期先按时间顺序列出，不进行主题聚类。",
+    intro: "Qwen API Key 还没有配置，这一期先按时间顺序列出，不进行主题聚类。",
     clusters: [
       {
         name: "本周分享",
@@ -77,9 +77,14 @@ function fallbackPlan(): RoundupPlan {
   };
 }
 
-async function planWithDeepSeek(): Promise<RoundupPlan> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+async function planWithQwen(): Promise<RoundupPlan> {
+  const apiKey = process.env.QWEN_API_KEY || process.env.DASHSCOPE_API_KEY;
   if (!apiKey) return fallbackPlan();
+
+  const baseUrl = (
+    process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+  ).replace(/\/$/, "");
+  const model = process.env.QWEN_MODEL || "qwen-plus";
 
   const catalog = weeklyItems.map((item) => {
     const preview = previews.get(item.id);
@@ -91,14 +96,14 @@ async function planWithDeepSeek(): Promise<RoundupPlan> {
     };
   });
 
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
+  const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${apiKey}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model,
       temperature: 0.4,
       response_format: { type: "json_object" },
       messages: [
@@ -137,7 +142,7 @@ ${JSON.stringify(catalog, null, 2)}`,
   });
 
   if (!response.ok) {
-    console.warn(`DeepSeek request failed: ${response.status}`);
+    console.warn(`Qwen request failed: ${response.status}`);
     return fallbackPlan();
   }
 
@@ -172,7 +177,7 @@ ${JSON.stringify(catalog, null, 2)}`,
   return parsed;
 }
 
-const plan = await planWithDeepSeek();
+const plan = await planWithQwen();
 
 const body = [
   "---",
