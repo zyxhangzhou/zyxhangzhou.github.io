@@ -1,6 +1,7 @@
 ---
 import type { CollectionEntry } from "astro:content";
 import { currentLocale, t } from "@/i18n";
+import { formatMomentDateTime } from "@/toolkit/moments/formatMomentDate";
 
 interface Props {
   moment: CollectionEntry<"moments">;
@@ -10,13 +11,7 @@ const { moment } = Astro.props;
 
 // 格式化日期
 function formatDate(date: Date): string {
-  return date.toLocaleDateString(currentLocale, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatMomentDateTime(date, currentLocale);
 }
 
 // 解析图片路径
