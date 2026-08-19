@@ -1,7 +1,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { fetchTweetPreview, type TweetPreview } from "../src/toolkit/twitter.ts";
+import { buildRoundupUserPrompt, ROUNDUP_SYSTEM_PROMPT } from "../src/toolkit/roundup/prompts.ts";
+import {
+  fallbackPlan,
+  normalizeRoundupPlan,
+  parseModelJson,
+} from "../src/toolkit/roundup/normalizePlan.ts";
+import { renderRoundupMarkdown } from "../src/toolkit/roundup/renderMarkdown.ts";
+import { fetchTweetPreview } from "../src/toolkit/twitter.ts";
+import type { RoundupCatalogItem, RoundupPlan } from "../src/toolkit/roundup/types.ts";
 
 const INBOX_PATH = path.resolve("src/data/tweet-inbox.json");
 const POSTS_DIR = path.resolve("src/posts/roundup");
@@ -19,18 +27,41 @@ type Inbox = {
   items: InboxItem[];
 };
 
-type Cluster = {
-  name: string;
-  summary: string;
-  tweetIds: string[];
-};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
-type RoundupPlan = {
-  title: string;
-  description: string;
-  intro: string;
-  clusters: Cluster[];
-};
+function readInbox(raw: string): Inbox {
+  const parsed: unknown = JSON.parse(raw);
+  if (!isRecord(parsed)) {
+    throw new Error("tweet-inbox.json 格式无效");
+  }
+
+  const items = Array.isArray(parsed.items) ? parsed.items : [];
+  return {
+    ownerUserId: typeof parsed.ownerUserId === "number" ? parsed.ownerUserId : null,
+    items: items.flatMap((item) => {
+      if (!isRecord(item) || typeof item.id !== "string" || typeof item.url !== "string") {
+        return [];
+      }
+      return [
+        {
+          id: item.id,
+          url: item.url,
+          receivedAt: typeof item.receivedAt === "string" ? item.receivedAt : "",
+          telegramText: typeof item.telegramText === "string" ? item.telegramText : "",
+        },
+      ];
+    }),
+  };
+}
+
+function readChoiceContent(payload: unknown): string {
+  if (!isRecord(payload) || !Array.isArray(payload.choices)) return "";
+  const first = payload.choices[0];
+  if (!isRecord(first) || !isRecord(first.message)) return "";
+  return typeof first.message.content === "string" ? first.message.content : "";
+}
 
 const formatJst = (date: Date, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: JST, ...options }).format(date);
@@ -42,7 +73,7 @@ const weekEndLabel = formatJst(weekEnd, { year: "numeric", month: "2-digit", day
 const weekStartLabel = formatJst(weekStart, { year: "numeric", month: "2-digit", day: "2-digit" });
 const slugDate = weekEndLabel;
 
-const inbox = JSON.parse(await readFile(INBOX_PATH, "utf8")) as Inbox;
+const inbox = readInbox(await readFile(INBOX_PATH, "utf8"));
 const weeklyItems = inbox.items.filter((item) => {
   const received = new Date(item.receivedAt).getTime();
   return received >= weekStart.getTime() && received <= weekEnd.getTime();
@@ -53,48 +84,26 @@ if (weeklyItems.length === 0) {
   process.exit(0);
 }
 
-const previews = new Map<string, TweetPreview>();
-for (const item of weeklyItems) {
-  const preview = await fetchTweetPreview(item.id);
-  if (!preview.text && item.telegramText) {
-    preview.text = item.telegramText;
-  }
-  previews.set(item.id, preview);
-}
-
-function fallbackPlan(): RoundupPlan {
-  return {
-    title: `本周摘录 · ${weekStartLabel} – ${weekEndLabel}`,
-    description: `本周分享了 ${weeklyItems.length} 条推文。`,
-    intro: "Qwen API Key 还没有配置，这一期先按时间顺序列出，不进行主题聚类。",
-    clusters: [
-      {
-        name: "本周分享",
-        summary: "以下是这一周转发到 inbox 的推文。",
-        tweetIds: weeklyItems.map((item) => item.id),
-      },
-    ],
-  };
-}
+const catalog: RoundupCatalogItem[] = await Promise.all(
+  weeklyItems.map(async (item) => {
+    const preview = await fetchTweetPreview(item.id);
+    return {
+      id: item.id,
+      url: item.url,
+      author: preview.authorHandle || "",
+      text: preview.text || item.telegramText,
+    };
+  }),
+);
 
 async function planWithQwen(): Promise<RoundupPlan> {
   const apiKey = process.env.QWEN_API_KEY || process.env.DASHSCOPE_API_KEY;
-  if (!apiKey) return fallbackPlan();
+  if (!apiKey) return fallbackPlan(catalog, weekStartLabel, weekEndLabel);
 
   const baseUrl = (
     process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
   ).replace(/\/$/, "");
   const model = process.env.QWEN_MODEL || "qwen-plus";
-
-  const catalog = weeklyItems.map((item) => {
-    const preview = previews.get(item.id);
-    return {
-      id: item.id,
-      url: item.url,
-      author: preview?.authorHandle || "",
-      text: preview?.text || item.telegramText,
-    };
-  });
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -104,38 +113,17 @@ async function planWithQwen(): Promise<RoundupPlan> {
     },
     body: JSON.stringify({
       model,
-      temperature: 0.4,
+      temperature: 0.6,
       response_format: { type: "json_object" },
       messages: [
-        {
-          role: "system",
-          content:
-            "你是中文技术博客编辑。根据用户本周收藏的 X/Twitter 帖子，聚类并写成周报提纲。只返回 JSON。",
-        },
+        { role: "system", content: ROUNDUP_SYSTEM_PROMPT },
         {
           role: "user",
-          content: `时间范围：${weekStartLabel} 至 ${weekEndLabel}（日本时间）。
-请输出 JSON，字段如下：
-{
-  "title": "中文标题，含本周摘录",
-  "description": "不超过 80 字的摘要",
-  "intro": "2-4 句开篇综述",
-  "clusters": [
-    {
-      "name": "主题名",
-      "summary": "这个主题为什么值得看，2-4 句",
-      "tweetIds": ["只使用我提供的 id"]
-    }
-  ]
-}
-规则：
-- 3 到 8 个主题；无法归类的放进名为「其他」的最后一组
-- tweetIds 必须全部来自输入，不要编造
-- 每条推文只出现一次
-- 用简体中文
-
-帖子列表：
-${JSON.stringify(catalog, null, 2)}`,
+          content: buildRoundupUserPrompt({
+            weekStartLabel,
+            weekEndLabel,
+            catalogJson: JSON.stringify(catalog, null, 2),
+          }),
         },
       ],
     }),
@@ -143,70 +131,27 @@ ${JSON.stringify(catalog, null, 2)}`,
 
   if (!response.ok) {
     console.warn(`Qwen request failed: ${response.status}`);
-    return fallbackPlan();
+    return fallbackPlan(catalog, weekStartLabel, weekEndLabel);
   }
 
-  const payload = (await response.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const content = payload.choices?.[0]?.message?.content;
-  if (!content) return fallbackPlan();
+  const content = readChoiceContent(await response.json());
 
-  const parsed = JSON.parse(content) as RoundupPlan;
-  const known = new Set(weeklyItems.map((item) => item.id));
-  const used = new Set<string>();
-  parsed.clusters = (parsed.clusters ?? [])
-    .map((cluster) => ({
-      ...cluster,
-      tweetIds: (cluster.tweetIds ?? []).filter(
-        (id) => known.has(id) && !used.has(id) && (used.add(id), true),
-      ),
-    }))
-    .filter((cluster) => cluster.tweetIds.length > 0);
+  if (!content) return fallbackPlan(catalog, weekStartLabel, weekEndLabel);
 
-  const missing = weeklyItems.map((item) => item.id).filter((id) => !used.has(id));
-  if (missing.length > 0) {
-    parsed.clusters.push({
-      name: "其他",
-      summary: "这一组没有被模型明确归类，原样附上。",
-      tweetIds: missing,
-    });
+  try {
+    return normalizeRoundupPlan(parseModelJson(content), catalog, weekStartLabel, weekEndLabel);
+  } catch (error) {
+    console.warn("Qwen JSON parse failed:", error);
+    return fallbackPlan(catalog, weekStartLabel, weekEndLabel);
   }
-
-  parsed.title ||= `本周摘录 · ${weekStartLabel} – ${weekEndLabel}`;
-  parsed.description ||= `本周分享了 ${weeklyItems.length} 条推文。`;
-  parsed.intro ||= "下面是这一周从 X 收藏下来的帖子。";
-  return parsed;
 }
 
 const plan = await planWithQwen();
-
-const body = [
-  "---",
-  `title: ${JSON.stringify(plan.title)}`,
-  `description: ${JSON.stringify(plan.description)}`,
-  `date: ${slugDate}`,
-  "tags:",
-  "  - roundup",
-  "  - twitter",
-  "categories:",
-  "  - 摘录",
-  "cover: ../../assets/images/cover-1.avif",
-  "draft: false",
-  "---",
-  "",
-  plan.intro,
-  "",
-  `> 收集区间：${weekStartLabel} – ${weekEndLabel}（JST），共 ${weeklyItems.length} 条。`,
-  "",
-  ...plan.clusters.flatMap((cluster) => [
-    `## ${cluster.name}`,
-    "",
-    cluster.summary,
-    "",
-    ...cluster.tweetIds.flatMap((id) => [`<Tweet id="${id}" />`, ""]),
-  ]),
-].join("\n");
+const body = renderRoundupMarkdown(plan, {
+  weekStartLabel,
+  weekEndLabel,
+  tweetCount: weeklyItems.length,
+});
 
 await mkdir(POSTS_DIR, { recursive: true });
 const filePath = path.join(POSTS_DIR, `weekly-roundup-${slugDate}.mdx`);
