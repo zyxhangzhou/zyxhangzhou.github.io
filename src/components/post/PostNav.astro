@@ -33,7 +33,7 @@ const t = getT(currentLocale);
           style={
             nextGradientCover
               ? `background-image: linear-gradient(to bottom right, ${generateRandomBrightColor()}, ${generateRandomBrightColor()});`
-              : `background-image: url(${prevPost.cover || sample(covers ?? []).src});`
+              : `background-image: url("${prevPost.cover || sample(covers ?? []).src}");`
           }
         >
           <span class="type">{t("post.previousPost")}</span>
@@ -60,7 +60,7 @@ const t = getT(currentLocale);
           style={
             nextGradientCover
               ? `background-image: linear-gradient(to bottom right, ${generateRandomBrightColor()}, ${generateRandomBrightColor()});`
-              : `background-image: url(${nextPost.cover || sample(covers ?? []).src});`
+              : `background-image: url("${nextPost.cover || sample(covers ?? []).src}");`
           }
         >
           <span class="type">{t("post.nextPost")}</span>

@@ -25,7 +25,8 @@ const posts = defineCollection({
         z.array(z.string()).nullable().optional(),
       ),
       draft: z.boolean().optional(),
-      cover: image().optional(),
+      // 本地图走 Astro 资源管线；远程 URL（周报 Picsum）渲染侧用 <img>
+      cover: z.union([z.url(), image()]).optional(),
       sticky: z.boolean().optional(),
       license: z
         .enum([
