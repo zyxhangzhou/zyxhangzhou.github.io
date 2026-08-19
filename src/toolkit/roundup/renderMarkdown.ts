@@ -1,3 +1,4 @@
+import { buildRoundupCoverUrl } from "./cover";
 import { groupNotesBySection } from "./normalizePlan";
 import type { RoundupPlan, RoundupRenderContext } from "./types";
 
@@ -33,7 +34,7 @@ export function renderRoundupMarkdown(plan: RoundupPlan, context: RoundupRenderC
     "  - twitter",
     "categories:",
     "  - 摘录",
-    "cover: ../../assets/images/cover-1.avif",
+    `cover: ${JSON.stringify(buildRoundupCoverUrl(context.weekEndLabel))}`,
     "draft: false",
     "---",
     "",
