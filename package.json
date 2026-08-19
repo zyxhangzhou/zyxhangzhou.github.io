@@ -11,7 +11,7 @@
     "astro": "bunx --bun astro",
     "check": "bunx --bun astro check --root . && bunx --bun svelte-check",
     "check-links": "lychee ./dist --root-dir ./dist --offline --exclude favicon.svg --cache",
-    "lint": "bunx --bun oxlint --type-aware --type-check . --fix",
+    "lint": "bunx --bun oxlint --type-aware --type-check . --fix --ignore-path .oxlintignore",
     "format": "bunx oxfmt .",
     "test": "bun run test:unit",
     "test:unit": "bun test src",
