@@ -11,7 +11,7 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -30,5 +30,5 @@ jobs:
       - name: Commit inbox changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: collect telegram tweet inbox"
-          file_pattern: src/data/tweet-inbox.json
+          commit_message: "chore: collect telegram tweets and memos"
+          file_pattern: src/data/tweet-inbox.json src/moments/*.md public/moments/*
