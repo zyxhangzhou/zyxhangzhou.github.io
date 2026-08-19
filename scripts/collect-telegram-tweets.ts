@@ -19,7 +19,7 @@ const HELP_TEXT = `用法：
 • /memo 文字 → 发一条动态
 • 照片说明写 /memo → 带图动态
 
-动态大约 15 分钟后出现在网站上。`;
+动态发出后大约 15 分钟内写入仓库，随后自动发布到网站。`;
 
 type InboxItem = {
   id: string;
@@ -342,8 +342,8 @@ async function publishMemo(messages: TelegramMessage[], body: string): Promise<s
   await writeFile(absoluteMarkdown, markdown, "utf8");
 
   return photos.length > 0
-    ? `已写入动态（${photos.length} 张图），大约 15 分钟后出现在网站上。`
-    : "已写入动态，大约 15 分钟后出现在网站上。";
+    ? `已写入动态（${photos.length} 张图），站点正在发布，几分钟后刷新即可。`
+    : "已写入动态，站点正在发布，几分钟后刷新即可。";
 }
 
 const inbox = await loadInbox();
