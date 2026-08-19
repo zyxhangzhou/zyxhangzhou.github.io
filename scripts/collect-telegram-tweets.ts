@@ -1,10 +1,25 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 
+import {
+  buildMomentFilenames,
+  buildMomentMarkdown,
+  formatTokyoDateTime,
+} from "../src/toolkit/moments/buildMomentMarkdown.ts";
+import { clusterTelegramMessages } from "../src/toolkit/telegram/clusterMessages.ts";
+import { isHelpCommand, parseMemoCommand } from "../src/toolkit/telegram/parseMemoCommand.ts";
+import { pickTelegramPhoto } from "../src/toolkit/telegram/pickTelegramPhoto.ts";
 import { extractTweetIds, tweetUrl } from "../src/toolkit/twitter.ts";
 
 const INBOX_PATH = path.resolve("src/data/tweet-inbox.json");
 const TELEGRAM_API = "https://api.telegram.org";
+const HELP_TEXT = `用法：
+• 发 X/Twitter 链接 → 收进周报 inbox，周日再生成 PR
+• /memo 文字 → 发一条动态
+• 照片说明写 /memo → 带图动态
+
+动态大约 15 分钟后出现在网站上。`;
 
 type InboxItem = {
   id: string;
@@ -28,11 +43,20 @@ type TelegramEntity = {
   url?: string;
 };
 
+type TelegramPhotoSize = {
+  file_id: string;
+  width: number;
+  height: number;
+  file_size?: number;
+};
+
 type TelegramMessage = {
   message_id: number;
   date: number;
   text?: string;
   caption?: string;
+  media_group_id?: string;
+  photo?: TelegramPhotoSize[];
   entities?: TelegramEntity[];
   caption_entities?: TelegramEntity[];
   from?: { id: number; is_bot?: boolean; username?: string };
@@ -42,7 +66,6 @@ type TelegramMessage = {
 type TelegramUpdate = {
   update_id: number;
   message?: TelegramMessage;
-  channel_post?: TelegramMessage;
 };
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -51,24 +74,167 @@ if (!token) {
   process.exit(0);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readInboxItem(value: unknown): InboxItem | undefined {
+  if (!isRecord(value)) return undefined;
+  if (typeof value.id !== "string" || typeof value.url !== "string") return undefined;
+  return {
+    id: value.id,
+    url: value.url,
+    telegramMessageId: typeof value.telegramMessageId === "number" ? value.telegramMessageId : 0,
+    telegramChatId: typeof value.telegramChatId === "number" ? value.telegramChatId : 0,
+    receivedAt: typeof value.receivedAt === "string" ? value.receivedAt : "",
+    telegramText: typeof value.telegramText === "string" ? value.telegramText : "",
+  };
+}
+
+function readInbox(value: unknown): Inbox {
+  if (!isRecord(value) || !Array.isArray(value.items) || typeof value.lastUpdateId !== "number") {
+    throw new Error("tweet-inbox.json is invalid");
+  }
+
+  const items: InboxItem[] = [];
+  for (const item of value.items) {
+    const parsed = readInboxItem(item);
+    if (parsed) items.push(parsed);
+  }
+
+  return {
+    ownerUserId: typeof value.ownerUserId === "number" ? value.ownerUserId : null,
+    lastUpdateId: value.lastUpdateId,
+    items,
+  };
+}
+
+function readEntity(value: unknown): TelegramEntity | undefined {
+  if (!isRecord(value) || typeof value.type !== "string") return undefined;
+  if (typeof value.offset !== "number" || typeof value.length !== "number") return undefined;
+  return {
+    type: value.type,
+    offset: value.offset,
+    length: value.length,
+    url: typeof value.url === "string" ? value.url : undefined,
+  };
+}
+
+function readEntities(value: unknown): TelegramEntity[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const entities: TelegramEntity[] = [];
+  for (const item of value) {
+    const entity = readEntity(item);
+    if (entity) entities.push(entity);
+  }
+  return entities;
+}
+
+function readPhoto(value: unknown): TelegramPhotoSize | undefined {
+  if (!isRecord(value) || typeof value.file_id !== "string") return undefined;
+  if (typeof value.width !== "number" || typeof value.height !== "number") return undefined;
+  return {
+    file_id: value.file_id,
+    width: value.width,
+    height: value.height,
+    file_size: typeof value.file_size === "number" ? value.file_size : undefined,
+  };
+}
+
+function readFrom(value: unknown): TelegramMessage["from"] {
+  if (!isRecord(value) || typeof value.id !== "number") return undefined;
+  return {
+    id: value.id,
+    is_bot: typeof value.is_bot === "boolean" ? value.is_bot : undefined,
+    username: typeof value.username === "string" ? value.username : undefined,
+  };
+}
+
+function readMessage(value: unknown): TelegramMessage | undefined {
+  if (!isRecord(value) || typeof value.message_id !== "number" || typeof value.date !== "number") {
+    return undefined;
+  }
+  if (
+    !isRecord(value.chat) ||
+    typeof value.chat.id !== "number" ||
+    typeof value.chat.type !== "string"
+  ) {
+    return undefined;
+  }
+
+  const photos = Array.isArray(value.photo)
+    ? value.photo.flatMap((item) => {
+        const photo = readPhoto(item);
+        return photo ? [photo] : [];
+      })
+    : undefined;
+
+  return {
+    message_id: value.message_id,
+    date: value.date,
+    text: typeof value.text === "string" ? value.text : undefined,
+    caption: typeof value.caption === "string" ? value.caption : undefined,
+    media_group_id: typeof value.media_group_id === "string" ? value.media_group_id : undefined,
+    photo: photos,
+    entities: readEntities(value.entities),
+    caption_entities: readEntities(value.caption_entities),
+    from: readFrom(value.from),
+    chat: { id: value.chat.id, type: value.chat.type },
+  };
+}
+
+function readUpdates(value: unknown): TelegramUpdate[] {
+  if (!Array.isArray(value)) {
+    throw new Error("getUpdates did not return an array");
+  }
+
+  const updates: TelegramUpdate[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry) || typeof entry.update_id !== "number") continue;
+    updates.push({
+      update_id: entry.update_id,
+      message: readMessage(entry.message),
+    });
+  }
+  return updates;
+}
+
+function readFilePath(value: unknown): string | undefined {
+  if (!isRecord(value) || typeof value.file_path !== "string") return undefined;
+  return value.file_path;
+}
+
 const api = (method: string) => `${TELEGRAM_API}/bot${token}/${method}`;
 
-async function telegram<T>(method: string, body?: Record<string, unknown>): Promise<T> {
+async function telegram(method: string, body?: Record<string, unknown>): Promise<unknown> {
   const response = await fetch(api(method), {
     method: body ? "POST" : "GET",
     headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  const payload = (await response.json()) as { ok: boolean; result: T; description?: string };
-  if (!payload.ok) {
-    throw new Error(payload.description || `Telegram API failed: ${method}`);
+  const payload: unknown = await response.json();
+  if (!isRecord(payload) || payload.ok !== true) {
+    const description =
+      isRecord(payload) && typeof payload.description === "string"
+        ? payload.description
+        : `Telegram API failed: ${method}`;
+    throw new Error(description);
   }
   return payload.result;
 }
 
 async function loadInbox(): Promise<Inbox> {
   const raw = await readFile(INBOX_PATH, "utf8");
-  return JSON.parse(raw) as Inbox;
+  return readInbox(JSON.parse(raw));
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath, fsConstants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function entityUrls(text: string, entities: TelegramEntity[] = []): string[] {
@@ -92,6 +258,29 @@ function collectTweetIds(message: TelegramMessage): string[] {
   return [...new Set([...extractTweetIds(text), ...extractTweetIds(fromEntities)])];
 }
 
+function clusterText(messages: TelegramMessage[]): string {
+  for (const message of messages) {
+    const text = (message.text ?? message.caption ?? "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function clusterPhotos(messages: TelegramMessage[]): TelegramPhotoSize[] {
+  const photos: TelegramPhotoSize[] = [];
+  for (const message of messages) {
+    const picked = pickTelegramPhoto(message.photo ?? []);
+    if (picked) photos.push(picked);
+  }
+  return photos;
+}
+
+function extensionFromFilePath(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) return ext;
+  return ".jpg";
+}
+
 async function reply(chatId: number, text: string, replyTo?: number) {
   await telegram("sendMessage", {
     chat_id: chatId,
@@ -100,17 +289,76 @@ async function reply(chatId: number, text: string, replyTo?: number) {
   });
 }
 
+async function saveTelegramPhoto(fileId: string, destWithoutExt: string): Promise<string> {
+  const filePath = readFilePath(await telegram("getFile", { file_id: fileId }));
+  if (!filePath) {
+    throw new Error(`Telegram getFile missing file_path for ${fileId}`);
+  }
+
+  const response = await fetch(`${TELEGRAM_API}/file/bot${token}/${filePath}`);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${filePath}`);
+  }
+
+  const ext = extensionFromFilePath(filePath);
+  const destPath = `${destWithoutExt}${ext}`;
+  await mkdir(path.dirname(destPath), { recursive: true });
+  await writeFile(destPath, Buffer.from(await response.arrayBuffer()));
+  return `/moments/${path.basename(destPath)}`;
+}
+
+async function publishMemo(messages: TelegramMessage[], body: string): Promise<string> {
+  const photos = clusterPhotos(messages);
+  if (!body && photos.length === 0) {
+    return "发点文字，或者配一张图。例如：/memo 今天天气真好";
+  }
+
+  const anchor = messages[0];
+  if (!anchor) return "没有可用的消息。";
+
+  const { fileSlug, frontmatter } = formatTokyoDateTime(new Date(anchor.date * 1000));
+  const { stem, markdownPath } = buildMomentFilenames(fileSlug, anchor.message_id);
+  const absoluteMarkdown = path.resolve(markdownPath);
+
+  if (await fileExists(absoluteMarkdown)) {
+    return "这条动态已经写过了，等站点部署即可。";
+  }
+
+  const imagePaths: string[] = [];
+  for (const [index, photo] of photos.entries()) {
+    const publicPath = await saveTelegramPhoto(
+      photo.file_id,
+      path.resolve(`public/moments/${stem}-${index}`),
+    );
+    imagePaths.push(publicPath);
+  }
+
+  const markdown = buildMomentMarkdown({
+    frontmatterDate: frontmatter,
+    text: body,
+    imagePaths,
+  });
+  await mkdir(path.dirname(absoluteMarkdown), { recursive: true });
+  await writeFile(absoluteMarkdown, markdown, "utf8");
+
+  return photos.length > 0
+    ? `已写入动态（${photos.length} 张图），大约 15 分钟后出现在网站上。`
+    : "已写入动态，大约 15 分钟后出现在网站上。";
+}
+
 const inbox = await loadInbox();
 const allowedFromEnv = process.env.TELEGRAM_ALLOWED_USER_ID;
 if (allowedFromEnv && !inbox.ownerUserId) {
   inbox.ownerUserId = Number(allowedFromEnv);
 }
 
-const updates = await telegram<TelegramUpdate[]>("getUpdates", {
-  offset: (inbox.lastUpdateId ?? 0) + 1,
-  timeout: 0,
-  allowed_updates: ["message"],
-});
+const updates = readUpdates(
+  await telegram("getUpdates", {
+    offset: (inbox.lastUpdateId ?? 0) + 1,
+    timeout: 0,
+    allowed_updates: ["message"],
+  }),
+);
 
 if (updates.length === 0) {
   console.log("No new Telegram updates.");
@@ -119,7 +367,9 @@ if (updates.length === 0) {
 
 const knownIds = new Set(inbox.items.map((item) => item.id));
 let added = 0;
+let memos = 0;
 let maxUpdateId = 0;
+const ownerMessages: TelegramMessage[] = [];
 
 for (const update of updates) {
   maxUpdateId = Math.max(maxUpdateId, update.update_id);
@@ -135,23 +385,32 @@ for (const update of updates) {
     console.log(`Locked inbox owner to Telegram user ${fromId}`);
   }
 
-  if (fromId !== inbox.ownerUserId) {
+  if (fromId !== inbox.ownerUserId) continue;
+  ownerMessages.push(message);
+}
+
+for (const cluster of clusterTelegramMessages(ownerMessages)) {
+  const text = clusterText(cluster);
+  const replyTo = cluster[0]?.message_id;
+  const chatId = cluster[0]?.chat.id;
+  if (!chatId) continue;
+
+  if (isHelpCommand(text)) {
+    await reply(chatId, HELP_TEXT, replyTo);
     continue;
   }
 
-  const text = (message.text ?? message.caption ?? "").trim();
-  if (text === "/start" || text === "/help") {
-    await reply(
-      message.chat.id,
-      "把 X/Twitter 链接发给我，或直接转发推文。我会先收进 inbox，周日下午再生成周报 PR。",
-      message.message_id,
-    );
+  const memo = parseMemoCommand(text);
+  if (memo.isMemo) {
+    const response = await publishMemo(cluster, memo.body);
+    await reply(chatId, response, replyTo);
+    memos += 1;
     continue;
   }
 
-  const tweetIds = collectTweetIds(message);
+  const tweetIds = [...new Set(cluster.flatMap((message) => collectTweetIds(message)))];
   if (tweetIds.length === 0) {
-    await reply(message.chat.id, "没有识别到 X/Twitter 链接。直接发 https://x.com/.../status/数字 即可。", message.message_id);
+    await reply(chatId, "没有识别到指令。发 X 链接收藏周报，或用 /memo 发动态。", replyTo);
     continue;
   }
 
@@ -160,9 +419,9 @@ for (const update of updates) {
     inbox.items.push({
       id,
       url: tweetUrl(id),
-      telegramMessageId: message.message_id,
-      telegramChatId: message.chat.id,
-      receivedAt: new Date(message.date * 1000).toISOString(),
+      telegramMessageId: cluster[0]?.message_id ?? 0,
+      telegramChatId: chatId,
+      receivedAt: new Date((cluster[0]?.date ?? 0) * 1000).toISOString(),
       telegramText: text,
     });
     knownIds.add(id);
@@ -171,11 +430,11 @@ for (const update of updates) {
 
   if (newIds.length > 0) {
     const lines = newIds.map((id) => `• ${tweetUrl(id)}`).join("\n");
-    await reply(message.chat.id, `已收录 ${newIds.length} 条：\n${lines}`, message.message_id);
+    await reply(chatId, `已收录 ${newIds.length} 条：\n${lines}`, replyTo);
   }
 }
 
 inbox.lastUpdateId = maxUpdateId;
 await writeFile(INBOX_PATH, `${JSON.stringify(inbox, null, 2)}\n`, "utf8");
 
-console.log(`Processed ${updates.length} updates, added ${added} tweets.`);
+console.log(`Processed ${updates.length} updates, added ${added} tweets, wrote ${memos} memos.`);
