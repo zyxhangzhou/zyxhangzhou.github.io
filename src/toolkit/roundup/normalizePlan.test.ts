@@ -114,5 +114,8 @@ describe("renderRoundupMarkdown", () => {
     expect(markdown).toContain("- 先问内存跳不跳");
     expect(markdown).toContain("## 其他");
     expect(markdown).not.toMatch(/## 其他[\s\S]*这是在说什么/);
+    expect(markdown).toContain(
+      'cover: "https://picsum.photos/seed/weekly-2026-08-19/1920/1080.webp"',
+    );
   });
 });
