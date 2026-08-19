@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { fallbackPlan, normalizeRoundupPlan, parseModelJson } from "./normalizePlan";
+import {
+  ensureRoundupTitle,
+  fallbackPlan,
+  normalizeRoundupPlan,
+  parseModelJson,
+} from "./normalizePlan";
 import { renderRoundupMarkdown } from "./renderMarkdown";
 import type { RoundupCatalogItem } from "./types";
 
@@ -12,6 +17,24 @@ describe("parseModelJson", () => {
   it("解析裸 JSON 与 markdown 围栏", () => {
     expect(parseModelJson('{"title":"ok"}')).toEqual({ title: "ok" });
     expect(parseModelJson('```json\n{"title":"ok"}\n```')).toEqual({ title: "ok" });
+  });
+});
+
+describe("ensureRoundupTitle", () => {
+  it("补上日期前缀，并保留主题词", () => {
+    expect(ensureRoundupTitle("", "2026-08-12", "2026-08-19")).toBe(
+      "2026-08-12 至 2026-08-19 技术周报",
+    );
+    expect(
+      ensureRoundupTitle(
+        "2026-08-12 至 2026-08-19 技术周报：Agent 工程精进、缓存实战与底层优化",
+        "2026-08-12",
+        "2026-08-19",
+      ),
+    ).toBe("2026-08-12 至 2026-08-19 技术周报：Agent 工程精进、缓存实战与底层优化");
+    expect(
+      ensureRoundupTitle("Agent 工程精进、缓存实战与底层优化", "2026-08-12", "2026-08-19"),
+    ).toBe("2026-08-12 至 2026-08-19 技术周报：Agent 工程精进、缓存实战与底层优化");
   });
 });
 
@@ -39,6 +62,7 @@ describe("normalizeRoundupPlan", () => {
       "2026-08-19",
     );
 
+    expect(plan.title).toBe("2026-08-12 至 2026-08-19 技术周报：本周摘录：缓存和 Redis");
     expect(plan.items.map((item) => item.id)).toEqual(["1", "2"]);
     expect(plan.items[0]?.takeaways).toEqual(["先看指针多不多"]);
     expect(plan.items[1]).toMatchObject({ id: "2", section: "其他" });

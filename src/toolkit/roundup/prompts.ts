@@ -19,7 +19,7 @@ export function buildRoundupUserPrompt(input: {
   return `时间范围：${input.weekStartLabel} 至 ${input.weekEndLabel}（日本时间）。
 请输出 JSON，字段如下：
 {
-  "title": "中文标题，口语，不要论文腔",
+  "title": "${input.weekStartLabel} 至 ${input.weekEndLabel} 技术周报：主题词",
   "description": "不超过 80 字，说明这周主要在看什么",
   "intro": "最多 3 句开篇，像周记第一段",
   "items": [
@@ -33,6 +33,7 @@ export function buildRoundupUserPrompt(input: {
   ]
 }
 规则：
+- title 必须是「${input.weekStartLabel} 至 ${input.weekEndLabel} 技术周报：……」这种格式；冒号后用 2 到 4 个名词短语概括主题，例如「Agent 工程精进、缓存实战与底层优化」。不要口语吐槽，不要完整句子
 - 每条输入帖子都要出现一次，不要编造 id
 - 用 section 把相近条目放在一起；无法归类的用「其他」
 - 主题名用日常词，例如「Agent 怎么落地」「缓存别背八股」「岗位现实」

@@ -49,13 +49,29 @@ export function fallbackNote(item: RoundupCatalogItem, section = "本周分享")
   };
 }
 
+export function ensureRoundupTitle(
+  title: string,
+  weekStartLabel: string,
+  weekEndLabel: string,
+): string {
+  const prefix = `${weekStartLabel} 至 ${weekEndLabel} 技术周报`;
+  const trimmed = title.trim();
+  if (!trimmed) return prefix;
+  if (trimmed.startsWith(prefix)) return trimmed;
+
+  const marker = "技术周报：";
+  const markerAt = trimmed.indexOf(marker);
+  const theme = (markerAt >= 0 ? trimmed.slice(markerAt + marker.length) : trimmed).trim();
+  return theme ? `${prefix}：${theme}` : prefix;
+}
+
 export function fallbackPlan(
   catalog: RoundupCatalogItem[],
   weekStartLabel: string,
   weekEndLabel: string,
 ): RoundupPlan {
   return {
-    title: `本周摘录 · ${weekStartLabel} – ${weekEndLabel}`,
+    title: `${weekStartLabel} 至 ${weekEndLabel} 技术周报`,
     description: `本周分享了 ${catalog.length} 条推文。`,
     intro: "模型这次没写出提纲，下面按收藏顺序附上原推。",
     items: catalog.map((item) => fallbackNote(item)),
@@ -95,7 +111,7 @@ export function normalizeRoundupPlan(
   }
 
   return {
-    title: readString(root?.title) || defaults.title,
+    title: ensureRoundupTitle(readString(root?.title), weekStartLabel, weekEndLabel),
     description: readString(root?.description) || defaults.description,
     intro: readString(root?.intro) || defaults.intro,
     items,
