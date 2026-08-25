@@ -13,6 +13,7 @@
   import { sidebarOpen } from "../../stores/sidebarStore";
   import { encryptedTocStore } from "../../stores/encryptedTocStore";
   import { currentLocale, getT } from "@/i18n";
+  import { lockBodyScroll } from "@/toolkit/ui/scrollLock";
   import SidebarContents from "./SidebarContents.svelte";
   import { initMenuActive } from "./sidebarHelpers";
   import SidebarOverlay from "./SidebarOverlay.svelte";
@@ -125,6 +126,41 @@
     }
   });
 
+  // 移动端抽屉打开时锁住背后页面，避免手指滑动菜单却滚动到正文
+  $effect(() => {
+    if (typeof document === "undefined" || typeof window === "undefined") {
+      return;
+    }
+    if (!$sidebarOpen) {
+      return;
+    }
+
+    const media = window.matchMedia("(max-width: 1023px)");
+    let release: (() => void) | undefined;
+
+    const applyLock = () => {
+      release?.();
+      release = undefined;
+      if (!media.matches) {
+        return;
+      }
+
+      release = lockBodyScroll(document, {
+        innerWidth: window.innerWidth,
+        getComputedPaddingInlineEnd: () =>
+          window.getComputedStyle(document.body).paddingInlineEnd,
+      });
+    };
+
+    applyLock();
+    media.addEventListener("change", applyLock);
+
+    return () => {
+      media.removeEventListener("change", applyLock);
+      release?.();
+    };
+  });
+
   onMount(() => {
     if (typeof window === "undefined" || typeof document === "undefined")
       return;
@@ -195,7 +231,7 @@
 
     <!-- Panels Container -->
     <div class="panels">
-      <div class="inner">
+      <div class="inner" data-sidebar-scroller>
         {#each panels as panel (panel.id)}
           <SidebarPanel
             id={panel.id}
@@ -254,16 +290,23 @@
     #sidebar {
       display: none;
       position: fixed;
+      top: 0;
       right: 0;
+      bottom: 0;
       background: var(--grey-1);
       box-shadow: var(--shadow-sidebar-mobile);
       z-index: var(--z-sidebar);
       width: 280px;
       height: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
     }
 
     #sidebar.on {
-      display: block;
+      display: flex;
+      flex-direction: column;
     }
   }
 
@@ -310,11 +353,41 @@
 
   @media (max-width: 1023px) {
     #sidebar > .inner {
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      justify-content: flex-start;
       width: 100%;
+      height: 100%;
+      min-height: 0;
+      margin-top: 0;
+      overflow: hidden;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .panels {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .panels > .inner {
+      flex: 1 1 auto;
       margin-top: 0;
+      height: auto;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
+
+    :global(#quick) {
+      flex-shrink: 0;
     }
   }
 
@@ -344,6 +417,8 @@
       display: block;
       opacity: 0.3;
       transform: translateX(-100%);
+      touch-action: none;
+      overscroll-behavior: none;
     }
   }
 
@@ -358,6 +433,12 @@
     screen and (min-width: 768px) and (max-width: 1440px) and (-webkit-min-device-pixel-ratio: 1) {
     #sidebar {
       overflow: visible;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    #sidebar {
+      overflow: hidden;
     }
   }
 </style>
