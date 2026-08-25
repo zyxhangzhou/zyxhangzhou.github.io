@@ -179,6 +179,10 @@
   "moments": {
     "title": "動態",
     "noContent": "暫無動態",
+    "loading": "載入中…",
+    "loadError": "載入動態失敗。",
+    "retry": "重試",
+    "pagination": "動態分頁",
     "publishedAt": "發佈於",
     "imageAlt": "動態圖片 {{index}}"
   },

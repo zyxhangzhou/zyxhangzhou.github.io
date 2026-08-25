@@ -1,8 +1,11 @@
 import type { NavItemType } from "@/components/navbar/NavTypes";
 import type { SidebarConfig } from "@/components/sidebar/SidebarTypes";
 import type { Locale } from "@/i18n";
+import type { MomentsFeedConfig } from "@/toolkit/moments/feedTypes";
 import { sanitizeThemeColor, type ThemeColorValue } from "./themeColor";
 import { DEFAULT_THEME_CONFIG } from "./themeConfig.defaults";
+
+export type { MomentsFeedConfig };
 
 interface BrandConfig {
   /**
@@ -704,6 +707,12 @@ export interface ShokaXThemeConfig {
    * - enable 为总开关，关闭后所有 HYC 子功能不可用
    */
   hyc?: HycConfig;
+
+  /**
+   * 动态 Feed 远程数据源配置。
+   * - 页面运行时从 GitHub raw 或 jsDelivr 拉取 JSON
+   */
+  momentsFeed?: MomentsFeedConfig;
 
   /**
    * 诊断与命令行输出配置。

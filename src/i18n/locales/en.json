@@ -179,6 +179,10 @@
   "moments": {
     "title": "Moments",
     "noContent": "No moments available",
+    "loading": "Loading moments…",
+    "loadError": "Failed to load moments.",
+    "retry": "Retry",
+    "pagination": "Moments pagination",
     "publishedAt": "Published on",
     "imageAlt": "Moment image {{index}}"
   },

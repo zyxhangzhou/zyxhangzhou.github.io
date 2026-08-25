@@ -48,4 +48,9 @@ export default defineConfig({
   comments: {
     enable: false,
   },
+  momentsFeed: {
+    repo: "zyxhangzhou/zyxhangzhou.github.io",
+    source: "jsdelivr",
+    pageSize: 20,
+  },
 });

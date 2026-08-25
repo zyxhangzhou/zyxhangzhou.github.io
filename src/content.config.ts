@@ -45,22 +45,6 @@ const posts = defineCollection({
     }),
 });
 
-// 动态/说说集合
-const moments = defineCollection({
-  loader: glob({
-    pattern: "**/*.{md,mdx}",
-    base: "src/moments",
-  }),
-  schema: ({ image }) =>
-    z.object({
-      date: z.date().refine((date) => !Number.isNaN(date.getTime()), {
-        message: "Invalid date format",
-      }),
-      images: z.array(z.union([z.string(), image()])).optional(),
-    }),
-});
-
 export const collections = {
   posts,
-  moments,
 };

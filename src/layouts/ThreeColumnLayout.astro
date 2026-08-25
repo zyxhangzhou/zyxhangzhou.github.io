@@ -4,6 +4,7 @@ import "@/styles/layout-three-column.css";
 import type { CollectionEntry } from "astro:content";
 import type { NavItemType } from "@/components/navbar/NavTypes";
 import type { WidgetPost } from "@/toolkit/posts/createWidgetPosts";
+import type { MomentsFeedConfig } from "@/toolkit/moments/feedTypes";
 import type {
   TocItem,
   RelatedPost,
@@ -43,7 +44,7 @@ interface Props {
     announcement?: boolean;
   };
   rightSidebarPosts?: CollectionEntry<"posts">[];
-  rightSidebarMoments?: CollectionEntry<"moments">[];
+  momentsFeed?: Partial<MomentsFeedConfig>;
   rightSidebarTagCloud?: Array<{
     name: string;
     count: number;
@@ -71,7 +72,7 @@ const {
   sidebarConfig,
   rightSidebarConfig = {},
   rightSidebarPosts = [],
-  rightSidebarMoments = [],
+  momentsFeed = {},
   rightSidebarTagCloud = [],
   navLinks = [],
   toc = [],
@@ -98,7 +99,7 @@ const {
   <RightSidebar
     config={rightSidebarConfig}
     posts={rightSidebarPosts}
-    moments={rightSidebarMoments}
+    {momentsFeed}
     tagCloudItems={rightSidebarTagCloud}
   />
 </div>

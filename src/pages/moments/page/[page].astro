@@ -1,0 +1,23 @@
+---
+export function getStaticPaths() {
+  return Array.from({ length: 20 }, (_, index) => ({
+    params: { page: String(index + 2) },
+  }));
+}
+
+const pageNumber = Number.parseInt(String(Astro.params.page || ""), 10);
+const target =
+  Number.isFinite(pageNumber) && pageNumber > 1 ? `/moments/?page=${pageNumber}` : "/moments/";
+---
+
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0;url=${target}`} />
+    <link rel="canonical" href={target} />
+    <title>Redirecting…</title>
+  </head>
+  <body>
+    <p><a href={target}>继续前往动态</a></p>
+  </body>
+</html>

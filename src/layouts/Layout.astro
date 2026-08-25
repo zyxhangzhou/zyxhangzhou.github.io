@@ -76,12 +76,11 @@ const tagCloudConfig = themeConfig.tagCloud || {};
 const visibilityTitleConfig = themeConfig.visibilityTitle || {};
 const layoutConfig = themeConfig.layout || {};
 const rightSidebarConfig = layoutConfig.rightSidebar || {};
+const momentsFeedConfig = themeConfig.momentsFeed;
 const layoutMode = layoutConfig.mode || "two-column";
 const enableThirdColumn = layoutMode === "three-column";
 const shouldComputeRightSidebarRandomPosts =
   enableThirdColumn && rightSidebarConfig.randomPosts === true;
-const shouldComputeRightSidebarRecentMoments =
-  enableThirdColumn && rightSidebarConfig.recentMoments === true;
 const shouldComputeRightSidebarTagCloud =
   enableThirdColumn && rightSidebarConfig.tagCloud === true;
 const ActiveLayout = enableThirdColumn ? ThreeColumnLayout : TwoColumnLayout;
@@ -102,12 +101,6 @@ const resolvedHeaderCover = pageCover ?? fixedCover;
 // Get all posts for widgets
 const allPosts = await getCollection("posts");
 const posts = allPosts.filter((post) => !post.data.draft);
-const moments = shouldComputeRightSidebarRecentMoments
-  ? (await getCollection("moments")).toSorted(
-      (a, b) =>
-        new Date(b.data.date).getTime() - new Date(a.data.date).getTime(),
-    )
-  : [];
 const rightSidebarPosts = shouldComputeRightSidebarRandomPosts
   ? posts.filter((post) => !post.data.encrypted)
   : [];
@@ -218,7 +211,7 @@ import SearchPage from "@/components/search/SearchPage.svelte";
           sidebarConfig={sidebarConfig}
           rightSidebarConfig={rightSidebarConfig}
           rightSidebarPosts={rightSidebarPosts}
-          rightSidebarMoments={moments}
+          momentsFeed={momentsFeedConfig}
           rightSidebarTagCloud={rightSidebarTagCloud}
           navLinks={navLinks}
           toc={toc}

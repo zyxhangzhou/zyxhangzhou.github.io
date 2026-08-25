@@ -172,6 +172,13 @@ export const DEFAULT_THEME_CONFIG: ShokaXThemeConfig = {
       tagCloud: true,
     },
   },
+  momentsFeed: {
+    repo: "zyxhangzhou/zyxhangzhou.github.io",
+    branch: "main",
+    basePath: "data/moments",
+    pageSize: 20,
+    source: "jsdelivr",
+  },
   friends: {
     title: "友链",
     description: "卡片式展示，支持站点预览与主题色点缀。",
