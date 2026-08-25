@@ -2,7 +2,8 @@
 import { currentLocale, getT } from "@/i18n";
 import type { CollectionEntry } from "astro:content";
 import { sample } from "es-toolkit/array";
-import { formatMomentMonthDay } from "@/toolkit/moments/formatMomentDate";
+import RecentMomentsCard from "@/components/moments/RecentMomentsCard.svelte";
+import type { MomentsFeedConfig } from "@/toolkit/moments/feedTypes";
 import {
   normalizeRightSidebarCardOrder,
   truncateRightSidebarText,
@@ -28,7 +29,7 @@ interface Props {
     announcement?: boolean;
   };
   posts?: CollectionEntry<"posts">[];
-  moments?: CollectionEntry<"moments">[];
+  momentsFeed?: Partial<MomentsFeedConfig>;
   tagCloudItems?: Array<{
     name: string;
     count: number;
@@ -41,7 +42,7 @@ interface Props {
 const {
   config = {},
   posts = [],
-  moments = [],
+  momentsFeed = {},
   tagCloudItems = [],
 } = Astro.props;
 
@@ -57,16 +58,6 @@ const showAnnouncement = config.announcement === true;
 
 const normalizedCardOrder = normalizeRightSidebarCardOrder(config.order);
 
-const latestMoments = moments.slice(0, 1).map((moment) => ({
-  id: moment.id,
-  href: "/moments/",
-  date: moment.data.date,
-  excerpt: String(moment.body || "")
-    .replaceAll(/<[^>]*>/g, "")
-    .replaceAll(/\s+/g, " ")
-    .trim(),
-}));
-
 const sampledPost = showRandomPosts ? sample(posts) : undefined;
 const shuffledPosts = sampledPost
   ? [
@@ -80,13 +71,9 @@ const shuffledPosts = sampledPost
     ]
   : [];
 
-function formatMomentDate(date: Date): string {
-  return formatMomentMonthDay(date, locale);
-}
-
 const hasSearchContent = showSearch;
 const hasCalendarContent = showCalendar;
-const hasRecentMomentsContent = showRecentMoments && latestMoments.length > 0;
+const hasRecentMomentsContent = showRecentMoments;
 const hasRandomPostsContent = showRandomPosts && shuffledPosts.length > 0;
 const hasTagCloudContent = showTagCloud && tagCloudItems.length > 0;
 const hasAnnouncementContent = showAnnouncement;
@@ -171,23 +158,7 @@ const hasRenderedContent =
                 <span class="extra-card__icon i-ri-chat-quote-line" />
               </div>
 
-              <ul class="extra-list">
-                {latestMoments.map((moment) => (
-                  <li class="extra-list__item">
-                    <a href={moment.href} class="extra-list__link">
-                      <span class="extra-list__meta">
-                        {formatMomentDate(moment.date)}
-                      </span>
-                      <span class="extra-list__title">
-                        {truncateRightSidebarText(
-                          moment.excerpt || t("moments.noContent"),
-                          38,
-                        )}
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <RecentMomentsCard client:load feed={momentsFeed} />
             </section>
           );
         }

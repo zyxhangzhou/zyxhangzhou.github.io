@@ -45,5 +45,6 @@ test("@smoke 主题切换与 moments 页面可达", async ({ page }) => {
 
   await page.goto(ROUTES.moments);
   await expect(page).toHaveURL(ROUTES.moments);
+  await expect(page.locator(".moments-status")).toHaveCount(0, { timeout: 15_000 });
   await expect(page.locator(".moment-card").first()).toBeVisible();
 });

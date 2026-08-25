@@ -179,6 +179,10 @@
   "moments": {
     "title": "动态",
     "noContent": "暂无动态",
+    "loading": "加载中…",
+    "loadError": "加载动态失败。",
+    "retry": "重试",
+    "pagination": "动态分页",
     "publishedAt": "发布于",
     "imageAlt": "动态图片 {{index}}"
   },

@@ -7,15 +7,11 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    outputs:
-      moments: ${{ steps.moments.outputs.changed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -31,30 +27,8 @@ jobs:
           TELEGRAM_ALLOWED_USER_ID: ${{ secrets.TELEGRAM_ALLOWED_USER_ID }}
         run: bun run tweets:collect
 
-      - name: Commit inbox changes
-        id: commit
+      - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: collect telegram tweets and memos"
-          file_pattern: src/data/tweet-inbox.json src/moments/*.md public/moments/*
-
-      - name: Detect moment file changes
-        id: moments
-        run: |
-          changed=false
-          if [ "${{ steps.commit.outputs.changes_detected }}" = "true" ]; then
-            if git diff-tree --no-commit-id --name-only -r "${{ steps.commit.outputs.commit_hash }}" | grep -qE '^(src/moments/|public/moments/)'; then
-              changed=true
-            fi
-          fi
-          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
-
-  deploy-site:
-    needs: collect
-    if: needs.collect.outputs.moments == 'true'
-    uses: ./.github/workflows/deploy.yml
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    secrets: inherit
+          file_pattern: src/data/tweet-inbox.json data/moments/**

@@ -1,25 +1,26 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { constants as fsConstants } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
   buildMomentFilenames,
-  buildMomentMarkdown,
   formatTokyoDateTime,
 } from "../src/toolkit/moments/buildMomentMarkdown.ts";
+import { prependMomentAndPersist } from "../src/toolkit/moments/feedDisk.ts";
+import type { MomentFeedItem } from "../src/toolkit/moments/feedTypes.ts";
 import { clusterTelegramMessages } from "../src/toolkit/telegram/clusterMessages.ts";
 import { isHelpCommand, parseMemoCommand } from "../src/toolkit/telegram/parseMemoCommand.ts";
 import { pickTelegramPhoto } from "../src/toolkit/telegram/pickTelegramPhoto.ts";
 import { extractTweetIds, tweetUrl } from "../src/toolkit/twitter.ts";
 
 const INBOX_PATH = path.resolve("src/data/tweet-inbox.json");
+const MOMENTS_MEDIA_DIR = path.resolve("data/moments/media");
 const TELEGRAM_API = "https://api.telegram.org";
 const HELP_TEXT = `用法：
 • 发 X/Twitter 链接 → 收进周报 inbox，周日再生成 PR
 • /memo 文字 → 发一条动态
 • 照片说明写 /memo → 带图动态
 
-动态发出后大约 15 分钟内写入仓库，随后自动发布到网站。`;
+动态写入 data/moments，约 15 分钟内同步到仓库。`;
 
 type InboxItem = {
   id: string;
@@ -228,15 +229,6 @@ async function loadInbox(): Promise<Inbox> {
   return readInbox(JSON.parse(raw));
 }
 
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath, fsConstants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function entityUrls(text: string, entities: TelegramEntity[] = []): string[] {
   return entities.flatMap((entity) => {
     if (entity.type === "url") {
@@ -304,7 +296,7 @@ async function saveTelegramPhoto(fileId: string, destWithoutExt: string): Promis
   const destPath = `${destWithoutExt}${ext}`;
   await mkdir(path.dirname(destPath), { recursive: true });
   await writeFile(destPath, Buffer.from(await response.arrayBuffer()));
-  return `/moments/${path.basename(destPath)}`;
+  return `media/${path.basename(destPath)}`;
 }
 
 async function publishMemo(messages: TelegramMessage[], body: string): Promise<string> {
@@ -317,33 +309,32 @@ async function publishMemo(messages: TelegramMessage[], body: string): Promise<s
   if (!anchor) return "没有可用的消息。";
 
   const { fileSlug, frontmatter } = formatTokyoDateTime(new Date(anchor.date * 1000));
-  const { stem, markdownPath } = buildMomentFilenames(fileSlug, anchor.message_id);
-  const absoluteMarkdown = path.resolve(markdownPath);
-
-  if (await fileExists(absoluteMarkdown)) {
-    return "这条动态已经写过了，等站点部署即可。";
-  }
+  const { stem } = buildMomentFilenames(fileSlug, anchor.message_id);
 
   const imagePaths: string[] = [];
   for (const [index, photo] of photos.entries()) {
-    const publicPath = await saveTelegramPhoto(
+    const relativePath = await saveTelegramPhoto(
       photo.file_id,
-      path.resolve(`public/moments/${stem}-${index}`),
+      path.join(MOMENTS_MEDIA_DIR, `${stem}-${index}`),
     );
-    imagePaths.push(publicPath);
+    imagePaths.push(relativePath);
   }
 
-  const markdown = buildMomentMarkdown({
-    frontmatterDate: frontmatter,
+  const item: MomentFeedItem = {
+    id: stem,
+    date: frontmatter,
     text: body,
-    imagePaths,
-  });
-  await mkdir(path.dirname(absoluteMarkdown), { recursive: true });
-  await writeFile(absoluteMarkdown, markdown, "utf8");
+    images: imagePaths,
+  };
+
+  const { wrote } = await prependMomentAndPersist(item);
+  if (!wrote) {
+    return "这条动态已经写过了。";
+  }
 
   return photos.length > 0
-    ? `已写入动态（${photos.length} 张图），站点正在发布，几分钟后刷新即可。`
-    : "已写入动态，站点正在发布，几分钟后刷新即可。";
+    ? `已写入动态（${photos.length} 张图），几分钟后刷新即可。`
+    : "已写入动态，几分钟后刷新即可。";
 }
 
 const inbox = await loadInbox();

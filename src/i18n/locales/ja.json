@@ -179,6 +179,10 @@
   "moments": {
     "title": "モーメント",
     "noContent": "モーメントはまだありません",
+    "loading": "読み込み中…",
+    "loadError": "モーメントの読み込みに失敗しました。",
+    "retry": "再試行",
+    "pagination": "モーメントページネーション",
     "publishedAt": "公開日",
     "imageAlt": "モーメント画像 {{index}}"
   },
