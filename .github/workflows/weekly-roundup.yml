@@ -30,6 +30,7 @@ jobs:
         run: bun run tweets:roundup
 
       - name: Open pull request
+        id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
           branch: weekly-roundup
@@ -37,8 +38,15 @@ jobs:
           title: "本周摘录：X 推文周报"
           commit-message: "content: add weekly tweet roundup"
           body: |
-            自动生成的本周 X 摘录，请先预览再合并。
+            自动生成的本周 X 摘录；创建后会自动 squash 合并进 main。
 
-            周日 14:00 JST 定时运行；也可以在 Actions 里手动触发。
+            周日 14:00 JST 定时运行（GitHub 可能略有延迟）；也可以在 Actions 里手动触发。
           add-paths: |
             src/posts/roundup/*.mdx
+
+      - name: Auto-merge roundup PR
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --squash --delete-branch
