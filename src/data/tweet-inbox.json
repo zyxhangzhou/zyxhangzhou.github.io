@@ -1,6 +1,6 @@
 {
   "ownerUserId": 5111371868,
-  "lastUpdateId": 347660255,
+  "lastUpdateId": 347660258,
   "items": [
     {
       "id": "2088927757128642783",
@@ -473,6 +473,30 @@
       "telegramChatId": 5111371868,
       "receivedAt": "2026-09-01T15:38:58.000Z",
       "telegramText": "https://x.com/shao__meng/status/2094608780759880089?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
+    },
+    {
+      "id": "2094702171619213816",
+      "url": "https://x.com/i/status/2094702171619213816",
+      "telegramMessageId": 141,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-09-02T00:55:00.000Z",
+      "telegramText": "https://x.com/vikingmute/status/2094702171619213816?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
+    },
+    {
+      "id": "2094600641247424981",
+      "url": "https://x.com/i/status/2094600641247424981",
+      "telegramMessageId": 142,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-09-02T01:36:58.000Z",
+      "telegramText": "https://x.com/yifanxu_ephai/status/2094600641247424981?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
+    },
+    {
+      "id": "2094835531754655797",
+      "url": "https://x.com/i/status/2094835531754655797",
+      "telegramMessageId": 143,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-09-02T02:38:55.000Z",
+      "telegramText": "https://x.com/liguobao2077/status/2094835531754655797?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
     }
   ]
 }
