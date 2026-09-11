@@ -8,6 +8,12 @@ on:
       - "src/data/tweet-inbox.json"
   workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: 要构建的 git ref。周报用 GITHUB_TOKEN 合并后须传 main，否则会仍检出触发时的旧提交
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -25,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

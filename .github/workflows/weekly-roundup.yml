@@ -8,11 +8,15 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  pages: write
+  id-token: write
 
 jobs:
   roundup:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      merged: ${{ steps.merge.outputs.merged }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -45,8 +49,23 @@ jobs:
             src/posts/roundup/*.mdx
 
       - name: Auto-merge roundup PR
+        id: merge
         if: steps.cpr.outputs.pull-request-number != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --squash --delete-branch
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+
+  # GITHUB_TOKEN 合进 main 不会触发 push 部署；这里显式调用，并检出合并后的 main
+  deploy-site:
+    needs: roundup
+    if: needs.roundup.outputs.merged == 'true'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      ref: main
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    secrets: inherit
