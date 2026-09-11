@@ -118,4 +118,34 @@ describe("renderRoundupMarkdown", () => {
       'cover: "https://picsum.photos/seed/weekly-2026-08-19/1920/1080.webp"',
     );
   });
+
+  it("转义解说里会被 MDX 当成 JSX 的字符", () => {
+    const markdown = renderRoundupMarkdown(
+      {
+        title: "本周摘录：检索",
+        description: "本地搜索。",
+        intro: "索引 <30 秒。",
+        items: [
+          {
+            id: "1",
+            section: "检索",
+            headline: "用 {id} 查",
+            explain: "3k 文件索引 <30 秒",
+            takeaways: ["阈值 <10 就重跑"],
+          },
+        ],
+      },
+      {
+        weekStartLabel: "2026-08-30",
+        weekEndLabel: "2026-09-06",
+        tweetCount: 1,
+      },
+    );
+
+    expect(markdown).toContain("索引 &lt;30 秒。");
+    expect(markdown).toContain("### 用 &#123;id&#125; 查");
+    expect(markdown).toContain("3k 文件索引 &lt;30 秒");
+    expect(markdown).toContain("- 阈值 &lt;10 就重跑");
+    expect(markdown).toContain('<Tweet id="1" />');
+  });
 });
