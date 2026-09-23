@@ -1,10 +1,11 @@
 export type ThemeMode = "light" | "dark";
 
-const STORAGE_KEY = "shokax-color-scheme";
+/** 与 Layout 首屏脚本共用，避免壁纸和配色在 hydration 前闪一下。 */
+export const THEME_STORAGE_KEY = "shokax-color-scheme";
 
 function getStoredTheme(win: Window): ThemeMode | null {
   try {
-    const stored = win.localStorage.getItem(STORAGE_KEY);
+    const stored = win.localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === "light" || stored === "dark") {
       return stored;
     }
@@ -41,7 +42,7 @@ function prefersReducedMotion(win: Window): boolean {
 
 function persistTheme(win: Window, theme: ThemeMode) {
   try {
-    win.localStorage.setItem(STORAGE_KEY, theme);
+    win.localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch (err) {
     console.warn("[ShokaX] Unable to persist theme", err);
   }

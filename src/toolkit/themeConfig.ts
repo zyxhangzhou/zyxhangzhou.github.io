@@ -79,6 +79,20 @@ interface CoverConfig {
   coverUrls?: string[];
 
   /**
+   * 按亮色 / 暗色拆开的首页壁纸。
+   * - 没有文章封面的页面（首页、归档、关于等）会按当前主题轮播对应图片
+   * - 至少 2 张才轮播；只有 1 张时静止显示
+   * - 某一侧留空时，回退到另一侧的图片
+   * - 配置后会忽略 fixedCover；文章页仍优先用文章自己的封面
+   * - 可填预设 key（cover-1 ~ cover-6）、public 路径或远程 URL
+   * - light 适合高调、日间、浅色画面；dark 适合夜景、暮色、低调整体
+   */
+  themedCovers?: {
+    light?: string[];
+    dark?: string[];
+  };
+
+  /**
    * 是否使用渐变背景封面。
    * - true：使用必应 API 获取每日图片作为封面
    * - false：使用预设封面图片或轮播
