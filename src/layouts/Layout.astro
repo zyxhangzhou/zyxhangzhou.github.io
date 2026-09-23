@@ -28,7 +28,12 @@ import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.astro";
 import { generateTagCloud } from "@/toolkit/posts/generateTagCloud";
 import { createWidgetPosts } from "@/toolkit/posts/createWidgetPosts";
 import { toTagHref } from "@/toolkit/posts/url";
-import { resolveHeaderCovers } from "@/toolkit/headerCover";
+import {
+  normalizeCoverRefs,
+  resolveHeaderCovers,
+  resolveThemedCoverSets,
+} from "@/toolkit/headerCover";
+import { THEME_STORAGE_KEY } from "@/toolkit/ui/theme";
 import Footer from "@/components/footer/Footer.astro";
 import type { ImageMetadata } from "astro";
 import { currentLocale } from "@/i18n";
@@ -85,10 +90,27 @@ const shouldComputeRightSidebarTagCloud =
   enableThirdColumn && rightSidebarConfig.tagCloud === true;
 const ActiveLayout = enableThirdColumn ? ThreeColumnLayout : TwoColumnLayout;
 
+function resolveConfiguredCovers(refs: readonly string[] | undefined) {
+  return normalizeCoverRefs(refs).flatMap((ref) => {
+    const resolved = resolveFixedCover(ref);
+    return resolved ? [resolved] : [];
+  });
+}
+
+// 文章封面和渐变封面优先。其余页面按亮暗主题轮播壁纸。
+const themedCoverSets =
+  pageCover || coverConfig.gradient
+    ? null
+    : resolveThemedCoverSets({
+        light: resolveConfiguredCovers(coverConfig.themedCovers?.light),
+        dark: resolveConfiguredCovers(coverConfig.themedCovers?.dark),
+      });
+
 // fixedCover：通过 Images.astro 统一解析（静态导入走 <Image />，字符串走 <img> 兜底）
-const fixedCover = coverConfig.fixedCover?.enable
-  ? resolveFixedCover(coverConfig.fixedCover.url)
-  : undefined;
+const fixedCover =
+  themedCoverSets || !coverConfig.fixedCover?.enable
+    ? undefined
+    : resolveFixedCover(coverConfig.fixedCover.url);
 const advancedCarousel = coverConfig.advancedCarousel === true;
 const headerCovers = advancedCarousel
   ? await resolveHeaderCovers({
@@ -164,6 +186,26 @@ import SearchPage from "@/components/search/SearchPage.svelte";
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
 
+    <script
+      is:inline
+      set:html={`(function () {
+        var themeStorageKey = ${JSON.stringify(THEME_STORAGE_KEY)};
+        var stored = null;
+        try {
+          stored = localStorage.getItem(themeStorageKey);
+        } catch (err) {
+          stored = null;
+        }
+        var theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        document.documentElement.dataset.theme = theme;
+      })();`}
+    ></script>
+
     <Analytics />
 
     <slot name="head" />
@@ -192,6 +234,7 @@ import SearchPage from "@/components/search/SearchPage.svelte";
         gradient={coverConfig.gradient}
         covers={advancedCarousel ? headerCovers : covers}
         advancedCarousel={advancedCarousel}
+        themedCovers={themedCoverSets ?? undefined}
         title={brandConfig.title}
       />
       <Brand

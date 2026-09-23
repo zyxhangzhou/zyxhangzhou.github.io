@@ -7,13 +7,17 @@ interface Props {
   alt: string;
   index: number;
   isListItem?: boolean;
+  /** 主题轮播的延迟。传入后不再使用写死的 6 张节奏。 */
+  cycleDelay?: string;
+  prioritize?: boolean;
 }
 
-const { src, alt, index, isListItem = false } = Astro.props as Props;
+const { src, alt, index, isListItem = false, cycleDelay, prioritize } = Astro.props as Props;
 
-// 动画延迟(仅多图轮播)
-const animationDelay = isListItem ? `${index * 6}s` : "0s";
-const isPrimaryCarouselImage = !isListItem || index === 0;
+const useCycle = isListItem && cycleDelay !== undefined;
+const animationDelay = cycleDelay ?? (isListItem ? `${index * 6}s` : "0s");
+const itemClass = useCycle ? "cover-item is-cycle" : "cover-item is-legacy";
+const isPrimaryCarouselImage = prioritize ?? (!isListItem || index === 0);
 
 // Astro 的 <Image /> 需要 ImageMetadata；字符串（public 路径/远程 URL）用 <img> 兜底
 const isStringSrc = typeof src === "string";
@@ -24,7 +28,7 @@ const assetSrc = !isStringSrc ? (src as ImageMetadata) : undefined;
 {
   isListItem ? (
     <li
-      class="cover-item"
+      class={itemClass}
       style={`animation-delay: ${animationDelay};`}
       onmouseenter="this.classList.add('stop-animation')"
       onmouseleave="this.classList.remove('stop-animation')"
@@ -85,9 +89,12 @@ const assetSrc = !isStringSrc ? (src as ImageMetadata) : undefined;
     position: absolute;
     z-index: var(--z-base);
     overflow: hidden;
-    animation: imageAnimation 36s linear infinite 0s;
     backface-visibility: hidden;
     transform-style: preserve-3d;
+  }
+
+  .cover-item.is-legacy {
+    animation: imageAnimation 36s linear infinite 0s;
   }
 
   .cover-item.stop-animation {

@@ -41,6 +41,16 @@ export default defineConfig({
     returnTitle: "🎉 欢迎回来！",
     restoreDelay: 3000,
   },
+  cover: {
+    fixedCover: {
+      enable: false,
+    },
+    // 亮色用日间高调画面，暗色用夜景和暮色，避免一套图硬套两种主题。
+    themedCovers: {
+      light: ["cover-4", "cover-5", "cover-3", "cover-1"],
+      dark: ["cover-2", "cover-6"],
+    },
+  },
   home: {
     selectedCategories: [{ name: "Getting Started" }],
     pageSize: 5,
