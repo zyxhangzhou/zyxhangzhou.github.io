@@ -1,8 +1,8 @@
 ---
 title: 关于
-description: 这里记录我是谁、这个博客在做什么，以及如何和我交流。
+description: 章雨潇（Aaron Chang），AI 原生全栈工程师，现居东京。这里记录我是谁、在做什么，以及如何和我交流。
 date: 2026-03-29
-updated: 2026-03-29
+updated: 2026-10-03
 ---
 
 import AboutDialog from "@/components/AboutDialog.svelte";
@@ -15,7 +15,7 @@ export const aboutAuthorAvatar = avatar.src;
 export const aboutDialogNodes = [
   {
     id: "intro",
-    text: "你好，欢迎来到关于页面。想先了解哪一部分？",
+    text: "你好，我是章雨潇，也可以叫我 Aaron。想先了解哪一部分？",
     options: [
       {
         label: "你是谁？",
@@ -23,14 +23,19 @@ export const aboutDialogNodes = [
         nextId: "identity",
       },
       {
+        label: "现在在做什么？",
+        reply: "你现在主要在做什么工作？",
+        nextId: "work",
+      },
+      {
+        label: "擅长哪些技术？",
+        reply: "你的技术栈是怎样的？",
+        nextId: "stack",
+      },
+      {
         label: "这个博客在写什么？",
         reply: "这个站点主要会分享什么内容？",
         nextId: "blog",
-      },
-      {
-        label: "技术栈是什么？",
-        reply: "这个站点是怎么搭建的？",
-        nextId: "stack",
       },
       {
         label: "怎么联系你？",
@@ -41,12 +46,12 @@ export const aboutDialogNodes = [
   },
   {
     id: "identity",
-    text: "我是 Aaron Chang。喜欢把复杂的事情做简单，也喜欢把有用的小工具做出来。平时会写代码、折腾数据和个人项目。Stay simple, stay naive.",
+    text: "我是一名 AI 原生全栈工程师，浙江大学软件工程硕士，2023 年毕业后来到东京工作，至今一直在这里。英语流利，也习惯了阅读日文设计书，跨国协作是我的日常。喜欢把复杂的事情做简单。Stay simple, stay naive.",
     options: [
       {
-        label: "继续：你平时最关注什么？",
-        reply: "你平时最关注哪些方向？",
-        nextId: "focus",
+        label: "继续：什么是「AI 原生」？",
+        reply: "你说的「AI 原生」具体指什么？",
+        nextId: "ai-native",
       },
       {
         label: "返回话题菜单",
@@ -56,8 +61,8 @@ export const aboutDialogNodes = [
     ],
   },
   {
-    id: "focus",
-    text: "我更关注能跑起来的小工具、清晰的代码，以及把学习过程记下来。",
+    id: "ai-native",
+    text: "对我来说，AI 原生不是让模型随手写代码，而是先把业务需求整理成可执行的规格和验收标准，再让 Claude Code、Codex 这类 Agent 去完成设计、实现和验证，我负责把控方向和质量。好用的流程我会沉淀成 Agent Skills 和团队规范，让整个团队都能复用。",
     options: [
       {
         label: "返回话题菜单",
@@ -67,9 +72,14 @@ export const aboutDialogNodes = [
     ],
   },
   {
-    id: "blog",
-    text: "这里会写学习笔记、项目复盘，以及一些平时折腾代码时的想法。",
+    id: "work",
+    text: "目前我远程参与 Archedata.io 的 Kairos 平台建设，这是一个面向美国金融机构的市场数据采购与成本治理平台。我参与了 V1→V2 的迁移，用 LLM 做了合同与账单的智能提取，搭了带权限过滤和来源引用的企业 AI 助手，还把 CI Runner 的使用时长降低了约一半。同时我在东京的 Broadleaf Japan 负责汽车售后案件沟通平台的后端，主要用 Go 和 PostgreSQL。",
     options: [
+      {
+        label: "继续：之前还做过什么？",
+        reply: "在这之前你还做过哪些事情？",
+        nextId: "history",
+      },
       {
         label: "返回话题菜单",
         reply: "了解了，看看其他问题。",
@@ -78,8 +88,19 @@ export const aboutDialogNodes = [
     ],
   },
   {
+    id: "history",
+    text: "来东京后，我先用 Spring Boot 做过库存管理系统，后来在 WOGO 从零搭建了基于树莓派集群的 3D 扫描系统，也用 Terraform 维护过 AWS 基础设施。读书期间，我在网易做过大数据平台的 Java 后端实习，也在浙大计算机创新技术研究院做过 NLP 关系抽取方向的算法实习。",
+    options: [
+      {
+        label: "返回话题菜单",
+        reply: "经历挺丰富的，回到主菜单。",
+        nextId: "intro",
+      },
+    ],
+  },
+  {
     id: "stack",
-    text: "当前站点使用 Astro + Svelte，运行时以 Bun 为主；并且会保持文章页面、搜索与组件交互体验的一致性。",
+    text: "语言方面主要用 Java、Go、Python、TypeScript 和 SQL；后端常用 Spring Boot、Gin 和 PostgreSQL；前端与工程化用 React、Docker、AWS、Terraform、GitHub Actions 和 Playwright；AI 应用方面做 Agentic 开发、LangChain 和 Agent 评测。这个博客本身则是用 Astro + Svelte 搭的，运行时用 Bun。",
     options: [
       {
         label: "返回话题菜单",
@@ -89,8 +110,19 @@ export const aboutDialogNodes = [
     ],
   },
   {
+    id: "blog",
+    text: "这里会写学习笔记、项目复盘，以及 AI 辅助开发的实践和想法，偶尔也会记录一些折腾代码时的小发现。",
+    options: [
+      {
+        label: "返回话题菜单",
+        reply: "了解了，看看其他问题。",
+        nextId: "intro",
+      },
+    ],
+  },
+  {
     id: "contact",
-    text: "可以通过侧边栏的 GitHub 或邮箱 zyxhangzhou@gmail.com 联系我。",
+    text: "可以发邮件到 aaron.chang.life@gmail.com，或者通过侧边栏的 GitHub 找到我。我目前在东京，也在关注国内的发展机会，欢迎来聊聊。",
     options: [
       {
         label: "返回话题菜单",
@@ -101,27 +133,19 @@ export const aboutDialogNodes = [
   },
 ];
 
-你好，欢迎来到这里。
+你好，我是章雨潇，也可以叫我 Aaron。
 
-这个页面会长期维护，主要包含三部分：
+浙江大学软件工程硕士，现居东京，是一名 AI 原生全栈工程师。工作中主要做企业级 AI 应用、后端系统和云基础设施，习惯先把复杂的业务需求拆成清晰的规格，再借助 AI Agent 完成设计、开发、验证和交付。
 
-1. 我是谁，以及我在持续关注什么。
-2. 这个博客会写什么、怎么写、为什么这样写。
-3. 如果你想交流，可以通过哪些方式联系我。
+这个博客用来记录学习笔记、项目复盘，以及我在 AI 辅助开发上的实践和思考。
 
-为了减少“一次性介绍信息”带来的阅读负担，下面放了一个可交互的对话组件。你可以点击不同选项查看对应回复。
+比起一次读完一大段介绍，你也可以通过下面的快速对话，挑感兴趣的问题来了解我。
 
 <AboutDialog
   client:load
   title="快速对话"
-  intro="选择一个回复选项继续对话。你可以在 about.mdx 里预先定义分支与回复。"
+  intro="选一个问题，看看我会怎么回答。"
   authorName={aboutAuthorName}
   authorAvatar={aboutAuthorAvatar}
   nodes={aboutDialogNodes}
 />
-
-你可以直接编辑 `src/content/about.mdx` 里的 `aboutDialogNodes` 来预先定义：
-
-- 对话内容（每个节点的文本）
-- 可选回复（每个按钮）
-- 对应回复（按钮跳转到哪个节点）
