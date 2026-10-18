@@ -11,7 +11,7 @@ export default defineConfig({
   },
   sidebar: {
     author: "Aaron Chang",
-    description: "Stay simple, stay naive. 写代码，做小工具，记录学习过程。",
+    description: "东京、AI 全栈、笔记和项目复盘",
     social: {
       github: {
         url: "https://github.com/zyxhangzhou",
