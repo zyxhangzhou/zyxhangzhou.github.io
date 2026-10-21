@@ -1,6 +1,6 @@
 {
   "ownerUserId": 5111371868,
-  "lastUpdateId": 347660320,
+  "lastUpdateId": 347660322,
   "items": [
     {
       "id": "2088927757128642783",
@@ -961,6 +961,22 @@
       "telegramChatId": 5111371868,
       "receivedAt": "2026-10-20T11:06:51.000Z",
       "telegramText": "https://x.com/cxjwin/status/2112386580786651164?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
+    },
+    {
+      "id": "2112629920207925385",
+      "url": "https://x.com/i/status/2112629920207925385",
+      "telegramMessageId": 269,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-10-21T01:00:59.000Z",
+      "telegramText": "https://x.com/uping123zzz/status/2112629920207925385?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
+    },
+    {
+      "id": "2112335151825035636",
+      "url": "https://x.com/i/status/2112335151825035636",
+      "telegramMessageId": 270,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-10-21T01:06:02.000Z",
+      "telegramText": "https://x.com/cxjwin/status/2112335151825035636?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
     }
   ]
 }
