@@ -1,6 +1,6 @@
 {
   "ownerUserId": 5111371868,
-  "lastUpdateId": 347660322,
+  "lastUpdateId": 347660323,
   "items": [
     {
       "id": "2088927757128642783",
@@ -977,6 +977,14 @@
       "telegramChatId": 5111371868,
       "receivedAt": "2026-10-21T01:06:02.000Z",
       "telegramText": "https://x.com/cxjwin/status/2112335151825035636?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
+    },
+    {
+      "id": "2112697288787403134",
+      "url": "https://x.com/i/status/2112697288787403134",
+      "telegramMessageId": 273,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-10-22T01:20:06.000Z",
+      "telegramText": "https://x.com/cxjwin/status/2112697288787403134?s=52&t=n7-UIdz-7_4pyLPeGT2vdQ"
     }
   ]
 }
