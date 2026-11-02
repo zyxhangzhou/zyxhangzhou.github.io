@@ -1,0 +1,616 @@
+---
+title: "让 WSL 中的 Claude Code 直接控制 Windows 浏览器：ego(lite) 跨系统桥接实践"
+description: "在 WSL2 里用一个包装脚本调用 Windows 上的 ego-browser，让 Claude Code 直接驱动 ego(lite)，不必另装浏览器或部署 MCP。"
+date: 2026-11-02
+tags:
+  - wsl
+  - claude-code
+  - ego
+  - agent
+categories:
+  - 笔记
+cover: ../assets/images/ego-lite-cover.png
+draft: false
+---
+
+最近在 X 上刷到陈大黄（[@realchendahuang](https://x.com/realchendahuang)）发的两条 [ego(lite)](https://www.egolite.ai/) 推文。一条是日常使用体验，一条在讲它为什么更适合 AI Agent。
+
+<Tweet id="2115049202564956223" />
+
+<Tweet id="2115116772894605732" />
+
+第二条里有个判断我一直记着：**ego(lite) 并不是在传统浏览器外面套一层 AI，而是按 Agent 的运行方式，重新设计了浏览器怎么被操作。**
+
+我平时用 Claude Code 写代码，也一直关心 Agent 怎么调用工具、跑在什么环境里。我的环境是 Windows 11 + WSL2 Ubuntu。代码、Node.js 和 Claude Code 都在 WSL 里，浏览器装在 Windows 上。
+
+于是想确认一件事：
+
+**跑在 WSL 里的 Claude Code，能不能直接控制 Windows 上的 ego(lite)？**
+
+试下来，这条路是通的。不用另外部署 MCP Server，不用手动开 CDP 调试端口，也不用在 WSL 里再装一份浏览器。
+
+下面记下我为什么想试它，以及这条桥是怎么接上的。
+
+## 一、为什么我想尝试 ego(lite)？
+
+### 1. Agent 需要的可能不只是一个浏览器自动化框架
+
+说到浏览器自动化，我首先想到的是 Playwright、Puppeteer 或 Selenium。这些工具很成熟，尤其适合写确定性的端到端测试。
+
+使用者换成 LLM Agent 之后，需求不太一样。Agent 经常要在一个陌生网页上边看边走：
+
+1. 打开网站。
+2. 理解页面结构。
+3. 找到目标按钮或输入框。
+4. 执行操作。
+5. 观察操作结果。
+6. 决定下一步做什么。
+
+如果每一步都是一次独立的工具调用，还得把页面状态重新交回模型，就会多出一截延迟，也多耗 Token。传统自动化工具又常常使用独立浏览器实例或隔离 Profile，已经登录的网站还得再处理一遍认证。
+
+吸引我的，是它想从浏览器本身把这些问题处理掉。
+
+### 2. 内置 Node.js 执行环境，减少 Agent 与工具之间的往返
+
+ego(lite) 提供了 `ego-browser` CLI。其中一个核心能力，是用内置的 Node.js Runtime 执行浏览器自动化脚本。
+
+传统 Agent 的工具调用常常是这样：
+
+```text
+Agent
+  │
+  ├── Tool Call：打开网页
+  │       ↓
+  │   返回页面状态
+  │       ↓
+  ├── Tool Call：点击按钮
+  │       ↓
+  │   返回操作结果
+  │       ↓
+  └── Tool Call：读取内容
+          ↓
+      返回页面数据
+```
+
+每次调用之间如果都要模型参与，交互轮次就会上去。ego-browser 允许 Agent 一次提交一段 JavaScript：
+
+```javascript
+const task = await taskSpace("inspect example");
+const page = task.page("p1");
+
+await page.goto("https://example.com");
+
+console.log(await page.title());
+console.log(await page.snapshot());
+
+await task.finish({ keep: [] });
+```
+
+导航、读标题、取页面、收尾，可以放在同一次 CLI 调用里做完。
+
+这并不等于 Agent 可以不再推理。页面结构未知，或者下一步取决于上一步的结果时，模型还是得介入。只是对已经确定的连续操作，批量执行能省掉中间那些空转。这也是我觉得它适合 Agent 的原因之一。
+
+这里的 Node.js Runtime 是 ego-browser 的脚本执行环境，不是说网页渲染进程本身是 Node.js。
+
+### 3. 面向 Agent 的语义快照
+
+另一个吸引我的地方是 Snapshot。
+
+传统浏览器自动化通常依赖 DOM、CSS Selector 或 XPath。对 LLM 来说，整页 HTML 不一定是最好读的材料。复杂网页里有大量无关节点、样式、隐藏元素和嵌套结构。
+
+ego-browser 的 `page.snapshot()` 返回的是更适合 Agent 理解的页面语义结构。一个登录页可能长这样：
+
+```text
+root
+  heading "Sign in"
+  textbox [ref=1]
+  textbox [ref=2]
+  button "Continue" [ref=3]
+```
+
+Agent 先按语义理解页面，再用对应的引用去操作元素。
+
+陈大黄在第二条推文里还提到，ego(lite) 对浏览器内核做了适配，Agent 能更直接拿到底层生成的语义快照，也能处理一些复杂的跨域页面。比起把整页 HTML 交给模型，这种快照有机会少带无关信息，也少一点定位失败后的重试。
+
+我觉得这是 Agent Browser 和传统浏览器自动化真正分开的地方。
+
+### 4. 一个浏览器，可以同时服务人和多个 Agent
+
+ego(lite) 还有一个我很在意的设计：**TaskSpace**。
+
+Agent 可以在独立的任务空间里操作网页，不必接管我正在看的标签页。
+
+```text
+ego(lite) Browser
+│
+├── User Space
+│   └── 我自己正常浏览网页
+│
+├── Agent TaskSpace A
+│   └── Claude Code 操作 GitHub
+│
+└── Agent TaskSpace B
+    └── 另一个 Agent 执行网页任务
+```
+
+我可以继续在 Windows 上正常浏览，同时让 WSL 里的 Claude Code 在另一个 TaskSpace 里打开页面、读内容，或者跑自动化。多个 Agent 也可以各用各的任务空间。
+
+这和让 Agent 直接占住当前窗口不是一回事。任务要跑很久，或者多个 Agent 并行时，这个设计就有用了。
+
+### 5. 复用登录状态，并允许人工接管
+
+Agent 操作浏览器时，还有一个很实际的问题：登录。
+
+如果希望 Claude Code 去操作 GitHub、Notion，或者某个需要登录的管理后台，每次都拉起一个全新的浏览器实例，就得重新登录，验证码和双因素认证也可能再来一遍。
+
+ego(lite) 可以导入其他浏览器的数据，也可以管多个独立 Profile。在获得授权的前提下，Agent 能用对应 Profile 里已经登录的会话。碰到验证码或其他必须人来处理的步骤，还可以把控制权交回来，处理完再继续。这是一种很自然的 Human-in-the-loop。
+
+另一面是，Agent 可能拿到比较高的账号权限。碰到敏感信息、支付或账号设置，权限边界还是要划清楚。
+
+### 6. 不绑定某一个特定的 Agent
+
+最后一点，是我决定动手的直接原因。
+
+ego(lite) 提供 CLI 和 Skill，不同的 Agent 可以共用同一套浏览器能力。我不想为了一个浏览器工具，换掉正在用的 Agent 或开发环境。我目前是：
+
+- Windows 11 负责桌面应用。
+- WSL2 Ubuntu 负责日常开发。
+- Claude Code 运行在 WSL 中。
+- ego(lite) 安装在 Windows 上。
+
+它既然已经有 CLI，能不能直接从 WSL 调用 Windows 上的那一份？下面就是完整过程。
+
+## 二、目标架构
+
+我想留在现在的环境里：Claude Code 不迁到 Windows，WSL 里也不再装一个浏览器。最终希望得到这样的调用链：
+
+```text
+Windows 11
+│
+├── WSL2 (Ubuntu)
+│   │
+│   ├── Claude Code
+│   │       │
+│   │       ▼
+│   ├── ego-browser Skill
+│   │       │
+│   │       ▼
+│   └── ego-browser Wrapper Script
+│           │
+│           │ WSL Interop
+│           ▼
+└── Windows
+    │
+    ├── ego-browser.exe
+    │       │
+    │       ▼
+    └── ego(lite) Browser
+            │
+            └── TaskSpace / Page
+```
+
+核心是用 WSL 自带的 **Windows Interop**。WSL 不只能访问 Windows 文件系统，也可以直接启动 Windows 的 `.exe`。只要 WSL 能正常调用 Windows 版 `ego-browser.exe`，再包一层脚本，Linux 里的 Claude Code 就能用上 Windows 浏览器。
+
+## 三、环境准备
+
+我的实际环境如下：
+
+| 组件 | 配置 |
+| --- | --- |
+| 操作系统 | Windows 11 |
+| Windows Build | 10.0.26200.9711 |
+| Linux | WSL2 Ubuntu |
+| Shell | zsh |
+| Node.js | v24.15.0 |
+| AI Agent | Claude Code |
+| 浏览器 | ego(lite) for Windows |
+| ego-browser 使用指南 | v2.2.0 |
+
+先在 Windows 里装好并启动 ego(lite)，可以参考 [官网](https://www.egolite.ai/)。后面的操作主要在 WSL 终端里做。
+
+## 四、确认 WSL 能否调用 Windows 程序
+
+我先在 WSL 里执行：
+
+```bash
+cmd.exe /c where ego-browser
+```
+
+结果是：
+
+```text
+zsh: command not found: cmd.exe
+```
+
+当时以为是 Windows Interop 被关掉了。其实只是当前 Shell 的 PATH 里找不到 `cmd.exe`。改用绝对路径：
+
+```bash
+/mnt/c/Windows/System32/cmd.exe /c ver
+```
+
+成功返回：
+
+```text
+Microsoft Windows [Version 10.0.26200.9711]
+```
+
+说明 WSL 可以执行 Windows 程序。不过这次带了一个警告：
+
+```text
+CMD.EXE was started with the above path
+as the current directory.
+
+UNC paths are not supported.
+Defaulting to Windows directory.
+```
+
+原因是当时人在 WSL 的 Linux 项目目录：
+
+```text
+/home/tako/work-avan/kairos
+```
+
+Windows CMD 会把它映射成类似：
+
+```text
+\\wsl.localhost\Ubuntu\home\tako\work-avan\kairos
+```
+
+CMD 不能把这种 UNC 路径当作当前工作目录。先切到 Windows 挂载目录就行：
+
+```bash
+(cd /mnt/c && /mnt/c/Windows/System32/cmd.exe /c ver)
+```
+
+警告就没了。
+
+## 五、找到 Windows 中的 ego-browser
+
+接下来要确认 Windows 版 ego-browser 装在哪。在 WSL 中执行：
+
+```bash
+(cd /mnt/c && /mnt/c/Windows/System32/cmd.exe /c "where.exe ego-browser")
+```
+
+我得到的结果是：
+
+```text
+C:\Users\<username>\.local\share\ego\active_version_dir\ego-browser.exe
+```
+
+其中 `<username>` 是 Windows 用户名。接下来直接从 WSL 调用：
+
+```bash
+(cd /mnt/c && \
+  /mnt/c/Users/<username>/.local/share/ego/active_version_dir/ego-browser.exe --help)
+```
+
+成功返回：
+
+```text
+ego-browser
+
+Usage:
+  ego-browser help [topic]
+  ego-browser import list
+  ego-browser skill
+  ego-browser upgrade
+  ego-browser nodejs -e <script>
+  ego-browser nodejs < script.js
+```
+
+这一步说明：**WSL 可以直接执行 Windows 上的 ego-browser CLI。** CLI 能启动，还不代表浏览器自动化已经打通。
+
+## 六、创建 WSL 桥接脚本
+
+每次敲完整路径不现实。Claude Code 也要能自己执行 `ego-browser`，不能依赖当前 zsh 会话里临时写的函数。所以我做了一个包装脚本。
+
+先建目录：
+
+```bash
+mkdir -p ~/.local/bin
+```
+
+然后写脚本：
+
+```bash
+cat > ~/.local/bin/ego-browser <<'EOF'
+#!/usr/bin/env bash
+set -e
+
+cd /mnt/c
+
+exec /mnt/c/Users/<username>/.local/share/ego/active_version_dir/ego-browser.exe "$@"
+EOF
+```
+
+把 `<username>` 换成实际的 Windows 用户名。加上执行权限：
+
+```bash
+chmod +x ~/.local/bin/ego-browser
+```
+
+再把 `~/.local/bin` 放进 PATH：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+可以把这行写进 `~/.zshrc`，新的交互式 zsh 会自动带上。Claude Code 拉起的非交互式 Shell 不一定读 `.zshrc`，所以还要让 Claude Code 进程本身继承到这条 PATH。
+
+然后执行：
+
+```bash
+command -v ego-browser
+ego-browser --help
+```
+
+能打出帮助信息，包装脚本就可用了。
+
+### 为什么包装脚本中要切换到 /mnt/c？
+
+Windows 程序从 WSL 的 Linux 路径启动时，当前目录可能被映射成 UNC。`cd /mnt/c` 可以让它从 Windows 能直接认识的目录启动。
+
+还有一件事：之后如果用 ego-browser 去读 WSL 项目里的文件，不能默认相对路径还有效。上传、下载、截图这些操作，可能要在 Windows 路径和 Linux 路径之间转一次。
+
+## 七、安装 ego-browser Skill
+
+接着让 Claude Code 认识 ego-browser。它带了和当前版本对应的 Skill 使用指南：
+
+```bash
+ego-browser skill
+```
+
+我这边的输出是：
+
+```text
+ego-browser usage guide v2.2.0 (windows)
+```
+
+里面有 TaskSpace、Page、Snapshot、浏览器操作和任务清理这些 API。Claude Code 在 WSL 里，Skill 得放在 Linux 文件系统上它才读得到。
+
+```bash
+mkdir -p ~/.claude/skills/ego-browser
+
+ego-browser skill > ~/.claude/skills/ego-browser/SKILL.md
+```
+
+然后检查：
+
+```bash
+head -20 ~/.claude/skills/ego-browser/SKILL.md
+```
+
+正常会看到：
+
+```text
+# ego-browser
+
+Call `help()` or `help("page.click")` ...
+```
+
+这里导出的是当前 CLI 自带的使用指南。如果还要官方 Skill 的完整辅助文档，比如 `references/install.md`，需要按项目的正式安装方式补上。改完后重启 Claude Code，让它重新发现 Skill。
+
+## 八、直接从 WSL 控制 Windows 浏览器
+
+测 Claude Code 之前，我先绕过 Agent，直接在 WSL 里跑脚本。这样出问题的时候，能分清是 CLI 桥没接上，还是 Skill 没配好。
+
+```bash
+ego-browser nodejs <<'EOF'
+const task = await taskSpace("wsl-claude-test");
+const page = task.page("p1");
+
+await page.goto("https://example.com");
+
+console.log("TaskSpace:", task.spaceId);
+console.log("Title:", await page.title());
+console.log(await page.snapshot());
+
+await task.finish({ keep: [] });
+EOF
+```
+
+这段脚本会：
+
+1. 创建一个 TaskSpace。
+2. 获取默认页面 `p1`。
+3. 打开 `https://example.com`。
+4. 获取页面标题。
+5. 获取页面 Snapshot。
+6. 结束任务并清理页面。
+
+跑出来是：
+
+```text
+TaskSpace: 5
+Title: Example Domain
+
+[p1 "Example Domain" | space "wsl-claude-test"(5)]
+
+root
+  svg_root
+  paragraph
+    text "该域名仅用于文档示例，无需获得许可。"
+  paragraph
+    text "This domain is for use in documentation examples..."
+  anchor [ref=1, url=https://iana.org/help/example-domains]
+    text "Learn more"
+```
+
+成功了。WSL 里的命令不但调起了 Windows 版 ego-browser，还打开了网页，读到了页面内容。浏览器自动化这条链路已经通了。
+
+### 一个有趣的小插曲：为什么浏览器没有任何反应？
+
+命令是成功返回了，但我第一次跑的时候，Windows 上的 ego(lite) 几乎看不出变化。后来发现，是脚本最后这一行：
+
+```javascript
+await task.finish({ keep: [] });
+```
+
+按使用说明，这会结束任务，并清掉 Agent 创建的页面。页面其实打开过，只是在我看之前就被关掉了。为了看到画面，我又跑了一次：
+
+```bash
+ego-browser nodejs <<'EOF'
+const task = await taskSpace("wsl-visual-test");
+const page = task.page("p1");
+
+await page.goto("https://github.com");
+
+console.log("TaskSpace:", task.spaceId);
+console.log("Title:", await page.title());
+
+await task.finish({ keep: ["p1"] });
+EOF
+```
+
+这次改成：
+
+```javascript
+await task.finish({ keep: ["p1"] });
+```
+
+页面留下来了。Windows 上的 ego(lite) 里能看到结果。TaskSpace 是怎么回事，这一下就具体了。
+
+## 九、最终验证：让 Claude Code 自己操作浏览器
+
+到这里，WSL 到 Windows ego-browser 的调用已经通了。最后是让 Claude Code 自己用。
+
+我重启了 Claude Code，然后说：
+
+> 使用 ego-browser Skill，通过 Windows 上的 ego(lite) 浏览器访问 example.com，获取网页标题和页面内容。不要使用 Playwright。
+
+Claude Code 识别并加载了 Skill：
+
+```text
+2 skills available
+
+Skill(ego-browser)
+Successfully loaded skill
+
+Ran 1 shell command
+```
+
+随后返回：
+
+```text
+我在 WSL 里通过 ego-browser 命令驱动
+Windows 上的 Ego Lite 浏览器，打开了 example.com，
+没有用 Playwright。
+
+网址：https://example.com/
+
+页面标题：Example Domain
+
+页面内容：
+同一句声明，用中文、英文、阿拉伯文、
+法文、俄文、西班牙文各写了一遍，
+末尾是一个 "Learn more" 链接。
+
+这次用的浏览器任务空间编号是 7，
+读完后已经关闭，没有留下打开的页面。
+```
+
+整条调用链是：
+
+```text
+Claude Code (WSL)
+    ↓
+ego-browser Skill
+    ↓
+WSL Wrapper Script
+    ↓
+Windows Interop
+    ↓
+ego-browser.exe (Windows)
+    ↓
+ego(lite) Browser
+    ↓
+TaskSpace / Page
+```
+
+全程没有用 Playwright，也没有另外部署 MCP Server。
+
+## 十、一些注意事项
+
+实验做成了，真用的时候还有几件事要注意。
+
+### 1. Windows 与 WSL 的文件路径不同
+
+ego-browser 的运行时在 Windows 里。后面如果要上传、下载或存截图，不能默认它看得懂 WSL 里的 `/home/...`。
+
+文件在 Windows C 盘上，就用 Windows 路径。文件在 WSL 里面，就按具体 API 的要求，换成 Windows 能访问的路径，或者先做一次路径转换。
+
+### 2. Skill 和 CLI 需要保持版本匹配
+
+使用指南跟着安装版本走。Windows 上的 ego(lite) 升级之后，建议重新执行：
+
+```bash
+ego-browser skill
+```
+
+再更新 WSL 里的 Skill 文档，免得 Agent 拿旧 API 去调新版本浏览器。
+
+### 3. Agent 可能拥有真实账号权限
+
+能复用登录状态是优点，也是要留神的地方。敏感操作最好让 Agent 在提交前先经过人确认。不要把浏览器会话交给不可信的 Agent 或脚本。
+
+### 4. 不必为了使用 ego(lite) 放弃现有浏览器自动化工具
+
+我不觉得 ego(lite) 必须替换 Playwright。Playwright 在确定性的 E2E、CI 和浏览器兼容性测试里仍然很成熟。
+
+ego(lite) 吸引我的是它面向交互式 Agent 的部分：任务空间、语义快照、已有浏览器会话，以及把多步操作写成一段脚本。两边有重叠，侧重点不一样。
+
+## 十一、后续可以探索的方向
+
+这次只验证了最基本的一步：让 Claude Code 打开网页并读内容。更有价值的，是把浏览器自动化放进日常开发。例如让 Claude Code：
+
+1. 修改本地 Web 项目的前端代码。
+2. 启动本地开发服务器。
+3. 通过 Windows 上的 ego(lite) 打开页面。
+4. 检查页面结构和视觉效果。
+5. 根据检查结果继续修改代码。
+
+这样就有一个完整的开发闭环：
+
+```text
+Claude Code
+    ↓
+修改代码
+    ↓
+启动开发服务器
+    ↓
+ego(lite) 打开页面
+    ↓
+读取 Snapshot / 截图
+    ↓
+检查结果
+    ↓
+继续修改代码
+```
+
+这也是我觉得 Agent Browser 值得继续试的方向。不只是让 Agent 能上网，而是让浏览器变成开发流程里可以操作、可以观察、可以核对的环境。
+
+## 十二、总结
+
+一开始只是在 X 上看到陈大黄的两条推文，注意到 ego(lite)。再往下看，它和传统浏览器自动化的出发点不一样。它不只关心怎么点页面，还关心 Agent 怎么理解页面、怎么少来回调用、怎么复用登录状态，以及怎么和人并行着干活。
+
+这次 WSL 桥接解决的是我自己的问题：
+
+**怎样留在 Linux 开发环境里，同时用上 Windows 桌面浏览器。**
+
+最后只加了一个包装脚本。没有额外部署服务，也不用再装一套浏览器。对 Windows + WSL2 + Claude Code 这种环境，这是很轻的一条路。
+
+更要紧的是这次让我意识到：
+
+**Agent 跑在 Linux 里，不代表它只能用 Linux 里的工具。**
+
+桥接一下，Windows 上的原生应用同样可以进到 Agent 的工作流里。Agent 越强，怎么让它们自然地用上已经装好的桌面软件，会越来越值得想。
+
+## 参考资料
+
+- [陈大黄：ego(lite) 日常使用体验](https://x.com/realchendahuang/status/2115049202564956223)
+- [陈大黄：ego(lite) 的 Agent Native 设计](https://x.com/realchendahuang/status/2115116772894605732)
+- [ego(lite) 官方网站](https://www.egolite.ai/)
+- [ego(lite) Windows 文档](https://www.egolite.ai/document/en/docs/windows/quick-start)
+- [Microsoft WSL：Run Windows tools from Linux](https://learn.microsoft.com/en-us/windows/wsl/filesystems#run-windows-tools-from-linux)
+- ego-browser v2.2.0 内置 Skill 使用指南：`ego-browser skill`
