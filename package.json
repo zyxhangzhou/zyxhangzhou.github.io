@@ -3,6 +3,7 @@
   "version": "1.6.0",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/patch-font-ffi.mjs",
     "dev": "bunx --bun astro dev",
     "build:site": "bun run scripts/sync-moments-public.ts && bunx --bun astro build",
     "build:index": "bunx --bun pagefind --site ./dist",
