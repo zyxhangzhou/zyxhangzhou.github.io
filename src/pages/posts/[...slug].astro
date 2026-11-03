@@ -18,6 +18,7 @@ import type { EncryptedData } from "@/toolkit/encryption/types";
 import { encryptContent } from "@/toolkit/encryption/crypto";
 import { createPostContentContainer } from "@/toolkit/posts/createPostContentContainer";
 import { toPostHref, toTagHref } from "@/toolkit/posts/url";
+import { isWalineCommentsEnabled } from "@/toolkit/comments";
 import { wrapRenderedCodeBlocks } from "@/toolkit/wrapRenderedCodeBlocks";
 import { wrapRenderedImages } from "@/toolkit/wrapRenderedImages";
 import { wrapCodeGroups } from "@/toolkit/wrapCodeGroups";
@@ -458,7 +459,7 @@ const postMeta = {
     />
 
     {
-      !isEncrypted && commentsConfig.enable !== false && (
+      !isEncrypted && isWalineCommentsEnabled(commentsConfig) && (
         <div id="comments" class="comment">
           <WalineComments
             client:visible
@@ -466,6 +467,7 @@ const postMeta = {
             lang={walineConfig.lang || currentLocale}
             dark={walineConfig.dark}
             path={walineConfig.path}
+            login={walineConfig.login}
             pagePath={postPath}
           />
         </div>

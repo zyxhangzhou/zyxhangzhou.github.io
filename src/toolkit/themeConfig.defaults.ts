@@ -116,6 +116,8 @@ export const DEFAULT_THEME_CONFIG: ShokaXThemeConfig = {
     waline: {
       serverURL: "",
       lang: "zh-CN",
+      dark: ':root[data-theme="dark"]',
+      login: "enable",
     },
   },
   hyc: {

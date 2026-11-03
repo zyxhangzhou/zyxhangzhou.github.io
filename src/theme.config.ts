@@ -56,7 +56,10 @@ export default defineConfig({
     pageSize: 5,
   },
   comments: {
-    enable: false,
+    enable: true,
+    waline: {
+      serverURL: "https://waline-zyxhangzhou.vercel.app",
+    },
   },
   momentsFeed: {
     repo: "zyxhangzhou/zyxhangzhou.github.io",

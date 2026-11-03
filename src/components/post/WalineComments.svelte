@@ -10,14 +10,16 @@
     dark?: boolean | string;
     path?: string;
     pagePath?: string;
+    login?: "enable" | "disable" | "force";
   }
 
   const {
     serverURL = "",
     lang = currentLocale,
-    dark = false,
+    dark = ':root[data-theme="dark"]',
     path = "",
     pagePath = "",
+    login = "enable",
   }: Props = $props();
 
   let walineEl = $state<HTMLDivElement | null>(null);
@@ -38,6 +40,7 @@
       path: finalPath,
       lang,
       dark,
+      login,
     });
 
     return () => {

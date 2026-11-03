@@ -6,6 +6,7 @@ import FriendRules from "@/content/friends-rules.md";
 import WalineComments from "@/components/post/WalineComments.svelte";
 import { currentLocale } from "@/i18n";
 import themeConfig from "@/theme.config";
+import { isWalineCommentsEnabled } from "@/toolkit/comments";
 import astroConfig from "../../../astro.config.mjs";
 
 const friendsConfig = themeConfig.friends;
@@ -59,7 +60,7 @@ const friendsJson = JSON.stringify(friendsSnippet, null, 2);
       <FriendLinks links={friendLinks} />
     </section>
     {
-      friendsConfig?.comments && commentsConfig.enable !== false && (
+      friendsConfig?.comments && isWalineCommentsEnabled(commentsConfig) && (
         <section class="friend-section friend-comments" id="comments">
           <h3>评论区</h3>
           <div class="comment">
@@ -69,6 +70,7 @@ const friendsJson = JSON.stringify(friendsSnippet, null, 2);
               lang={walineConfig.lang || currentLocale}
               dark={walineConfig.dark}
               path={walineConfig.path}
+              login={walineConfig.login}
               pagePath={friendsPath}
             />
           </div>

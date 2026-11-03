@@ -283,6 +283,14 @@ interface WalineClientConfig {
    * - CSS 选择器: 当选择器命中时启用暗黑模式
    */
   dark?: boolean | string;
+
+  /**
+   * 登录模式。
+   * - enable: 可以游客评论，也可以用社交账号登录
+   * - disable: 只能填写昵称评论
+   * - force: 必须登录后才能评论
+   */
+  login?: "enable" | "disable" | "force";
 }
 
 interface CommentsConfig {

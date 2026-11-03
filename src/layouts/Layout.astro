@@ -28,6 +28,7 @@ import ThreeColumnLayout from "@/layouts/ThreeColumnLayout.astro";
 import { generateTagCloud } from "@/toolkit/posts/generateTagCloud";
 import { createWidgetPosts } from "@/toolkit/posts/createWidgetPosts";
 import { toTagHref } from "@/toolkit/posts/url";
+import { isWalineCommentsEnabled } from "@/toolkit/comments";
 import {
   normalizeCoverRefs,
   resolveHeaderCovers,
@@ -75,8 +76,8 @@ const coverConfig = themeConfig.cover || {};
 const footerConfig = themeConfig.footer || {};
 const widgetsConfig = themeConfig.widgets || {};
 const commentsConfig = themeConfig.comments || {};
-const commentsEnabled = Boolean(themeConfig.comments?.enable);
 const walineConfig = commentsConfig.waline || {};
+const commentsEnabled = isWalineCommentsEnabled(commentsConfig);
 const tagCloudConfig = themeConfig.tagCloud || {};
 const visibilityTitleConfig = themeConfig.visibilityTitle || {};
 const layoutConfig = themeConfig.layout || {};
