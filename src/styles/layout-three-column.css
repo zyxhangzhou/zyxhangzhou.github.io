@@ -15,8 +15,9 @@
   display: none;
 }
 
+/* 用两个类，避免关键 CSS 抽取时丢掉只含单个类的栅格列定义 */
 @media (min-width: 1024px) {
-  .layout-three-column {
+  .layout-frame.layout-three-column {
     grid-template-columns: 15rem minmax(0, 1fr);
   }
 
@@ -37,7 +38,7 @@
 }
 
 @media (min-width: 1440px) {
-  .layout-three-column {
+  .layout-frame.layout-three-column {
     width: min(calc(100% - 1.5rem), 92rem);
     gap: 1.125rem;
     grid-template-columns: 15rem minmax(0, 1fr) 15rem;

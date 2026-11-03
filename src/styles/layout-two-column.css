@@ -11,8 +11,9 @@
   grid-column: 1;
 }
 
+/* 用两个类，避免关键 CSS 抽取时丢掉只含单个类的栅格列定义 */
 @media (min-width: 1024px) {
-  .layout-two-column {
+  .layout-frame.layout-two-column {
     grid-template-columns: 15rem minmax(0, 1fr);
   }
 
