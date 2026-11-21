@@ -1,6 +1,6 @@
 {
   "ownerUserId": 5111371868,
-  "lastUpdateId": 347660364,
+  "lastUpdateId": 347660370,
   "items": [
     {
       "id": "2088927757128642783",
@@ -1313,6 +1313,54 @@
       "telegramChatId": 5111371868,
       "receivedAt": "2026-11-21T09:45:50.000Z",
       "telegramText": "https://x.com/rohoqinai/status/2121766772210573357?a=Dgib111_t-J4IXQZldc&s=52"
+    },
+    {
+      "id": "2124113594036170994",
+      "url": "https://x.com/i/status/2124113594036170994",
+      "telegramMessageId": 357,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-11-21T14:40:15.000Z",
+      "telegramText": "https://x.com/guluhehe/status/2124113594036170994?a=F4fmBqxT7LeavP-2G_g&s=52"
+    },
+    {
+      "id": "2124106873729421365",
+      "url": "https://x.com/i/status/2124106873729421365",
+      "telegramMessageId": 358,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-11-21T15:16:50.000Z",
+      "telegramText": "https://x.com/it_works_123/status/2124106873729421365?a=WIvjPGI4y5RlVpPZpB0&s=52"
+    },
+    {
+      "id": "2124111081324839357",
+      "url": "https://x.com/i/status/2124111081324839357",
+      "telegramMessageId": 359,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-11-21T15:18:24.000Z",
+      "telegramText": "https://x.com/mylifcc/status/2124111081324839357?a=rsPdggnM3Mn2ythyoro&s=52"
+    },
+    {
+      "id": "2123994505951273296",
+      "url": "https://x.com/i/status/2123994505951273296",
+      "telegramMessageId": 360,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-11-21T15:20:43.000Z",
+      "telegramText": "https://x.com/huangruiteng/status/2123994505951273296?a=uA_KU5HoJiILzV0XamY&s=52"
+    },
+    {
+      "id": "2123880585492115873",
+      "url": "https://x.com/i/status/2123880585492115873",
+      "telegramMessageId": 361,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-11-21T16:16:17.000Z",
+      "telegramText": "https://x.com/badlogicgames/status/2123880585492115873?a=zMdRqPeCIbFTsLN9uuY&s=52"
+    },
+    {
+      "id": "2121875732733259986",
+      "url": "https://x.com/i/status/2121875732733259986",
+      "telegramMessageId": 362,
+      "telegramChatId": 5111371868,
+      "receivedAt": "2026-11-21T17:46:01.000Z",
+      "telegramText": "https://x.com/wangzan101/status/2121875732733259986?a=Kyg8hkFiBWRvkspuKS4&s=52"
     }
   ]
 }
